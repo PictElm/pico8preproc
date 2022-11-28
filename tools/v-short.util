@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+# Usage: changes a version in YZ[c] to 0.Y.Z[c]
+import sys
+v = sys.argv[1]
+if '.' in v:
+    print(v)
+else:
+    y, *z = list(v)
+    print(0, z.pop(0) if '0' == y and 1 < len(z) else y, ''.join(z), sep='.')

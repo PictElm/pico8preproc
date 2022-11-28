@@ -1,0 +1,26 @@
+feature [version]
+
+language:
+	!= [05+]
+	<op>= [05+]
+	if () [05+]
+
+	//comments [16+]
+	?xyz: [16+]
+
+	while () [20+]
+
+file:
+	pico8_dyn: [18+]
+
+function:
+	pico8_preprocess(int, char const*): [05+]
+	get_first_token/get_next_token/get_token: [11+]
+
+
+pico-8 version,address,has tok
+0.0.5,0x0043dcc0
+0.1.0,0x0043e750
+0.1.1,0x0043fc00
+0.1.2,0x00445640
+.. (TODO)
