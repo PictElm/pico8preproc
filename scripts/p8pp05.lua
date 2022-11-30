@@ -18,14 +18,20 @@ function m.pp(source)
 
     local at
     repeat
-      at = ln:find('[!+%-*/%%]=')
+      at = ln:find('%!=')
+        or ln:find('%+=')
+        or ln:find('%-=')
+        or ln:find('%*=')
+        or ln:find('%/=')
+        or ln:find('%%=')
       if not at then break end
       local c = ln:sub(at, at)
       if '!' == c
         then ln = ln:sub(1, at-1).."~"..ln:sub(at+1)
         else
           local backw = ln:sub(1, at-1):reverse()
-          ln = ln:sub(1, at-1).." = "..backw:sub(backw:find("%S+")):reverse().." "..c.." "..ln:sub(at+2)
+          local a, b = backw:find("%S+")
+          ln = backw:sub(a):reverse().." = "..backw:sub(a, b):reverse().." "..c.." "..ln:sub(at+2)
       end
     until nil
 
