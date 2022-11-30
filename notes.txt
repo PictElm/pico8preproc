@@ -18,9 +18,9 @@ function:
 	get_first_token/get_next_token/get_token: [11+]
 
 
-pico-8 version,address,has tok
-0.0.5,0x0043dcc0
-0.1.0,0x0043e750
-0.1.1,0x0043fc00
-0.1.2,0x00445640
+pico-8 version,address,in-file,offset
+0.0.5,0x0043dcc0,0x00055cd9,-4095975
+0.1.0,0x0043e750,,
+0.1.1,0x0043fc00,,
+0.1.2,0x00445640,,
 .. (TODO)

@@ -5,6 +5,7 @@ c=$1
 while [ 0 -ne $# ]
   do
     case $c in
+      -*h) echo "Usage: [-dase] <version>"; exit;;
       -*d) pdump=1; c=${c%?};;
       -*a) paddr=1; c=${c%?};;
       -*s) psize=1; c=${c%?};;
