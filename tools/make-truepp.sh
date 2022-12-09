@@ -1,78 +1,69 @@
 #!/bin/sh
-
+# Example: tools/make-truepp.sh hidden/versions/0.0.5/bin/pico-8/pico8 truepp05
 # TODO: find and solve this 'WARNING: Cannot find plugin constructor'
 
-p8bin=${1:-../bin/pico-8/pico8}
+p8bin=$1
 truepp=${2:-./truepp}
-
-test -x "$p8bin"
+egg=${3:-`dirname $0`/make-truepp-egg.asm}
 
 log() { echo "$@" >/dev/tty; }
-fns=`printf '%s\n' codo_main codo_exit pico8_preprocess | sort`
+die() { log "$@"; exit 1; }
 
-( rz-bin -s "$p8bin" 2>/dev/null |
+test -z "$p8bin"  && die "Usage: `basename $0` <p8bin> [<truepp> [<egg>]]"
+test -x "$p8bin"  || die "'$p8bin' is not an executable"
+test -e "$truepp" && die "Would override '$truepp'"
+test -f "$egg"    || die "Cannot read shellcode '$egg'"
+
+fns=`printf '%s\n' codo_main codo_exit codo_malloc codo_free pico8_preprocess | sort`
+plat='-a x86.nz -b 64'
+
+# get info of needed symbols
+( rz-bin -s "$p8bin" |
   grep "\s\(`printf '\|%s' $fns | tail -c +3`\)$" |
   sort -k 7
 ) |
 
-( readfn() { read $1_nth $1_paddr $1_vaddr $1_bind $1_type $1_size $1_name; }
-  for fn in $fns; do readfn $fn; done
-  log "`set | grep _vaddr`"
-
-  log "available space: $((codo_main_size)) bytes"
-  echo $codo_main_paddr
-
-  cat <<-EGG
-  ; // (using x86_64 call convention)
-  ; 
-  ; // max uint or something
-  ; #define BUF_SZ 0x4000
-  ; // should use malloc/free directly?
-  ; 
-  ; char* in = codo_malloc(BUF_SZ);
-  ; char* out = codo_malloc(BUF_SZ);
-  ; 
-  ; char* head;
-  ; ssize_t sz;
-  ; 
-  ; head = in;
-  ; while ((sz = read(STDIN_FILENO, in, BUF_SZ-(in-head)))) in+= sz;
-  ; 
-  ; pico8_preprocess(in, out);
-  ; 
-  ; head = in;
-  ; while ((sz = write(STDOUT_FILENO, out, BUF_SZ-(out-head)))) out+= sz;
-  ; 
-  ; codo_free(in);
-  ; codo_free(out);
-  ; return 0; // _exit(0);
-
-  ; TODO: all
-  ;mov rdi [in]
-  ;mov rsi [out]
-  ;call $pico8_preprocess_paddr
-
-  xor eax, eax
-  ret
-EGG
+# select usefull and translates from hex notation
+( while read fn_nth fn_paddr fn_vaddr fn_bind fn_type fn_size fn_name
+    do echo $((fn_paddr)) $((fn_vaddr)) $fn_size
+  done
 ) |
 
-( read at
+# subst in asm file
+( set -a
+  for fn in $fns
+    do read ${fn}_paddr ${fn}_vaddr ${fn}_size
+  done
+  set +a
+  log "`env | grep _vaddr`"
+
+  log "available space: $codo_main_size bytes"
+
+  echo $codo_main_paddr $codo_main_size
+
+  sed /^\$/d "$egg" | tr -s \  | envsubst
+) |
+
+# assemble and insert
+( read at size
 
   egg=`mktemp`
-  trap 'rm $egg' EXIT
-  rz-asm -o $((at)) -B - >$egg 2>/dev/null||:
+  trap rm\ $egg EXIT
+  rz-asm $plat -o $at -B - >$egg
   len=`wc -c <$egg`
 
-  log "override from $((at)) ($((len)) bytes)"
+  log "override from $at ($len bytes)"
 
-  head -c $((at)) "$p8bin"
+  head -c $at "$p8bin"
   cat $egg
-  tail -c +$((at+len+1)) "$p8bin"
+  #tail -c +$((at+len+1)) "$p8bin"
+
+  log "padding with 'nop's ($((size-len)) bytes)"
+  printf %$((size-len))s | tr \  `rz-asm $plat -B nop` | head -c $((size-len))
+  tail -c +$((at+size+1)) "$p8bin"
 ) |
 
+# output into executable
 ( cat >"$truepp"
 	chmod +x "$truepp"
-	#tee "$truepp" | xxd -g1 | less
 )
-
