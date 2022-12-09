@@ -34,6 +34,7 @@ plat='-a x86.nz -b 64'
   for fn in $fns
     do read ${fn}_paddr ${fn}_vaddr ${fn}_size
   done
+  buffer_size=$((0x4000))
   set +a
   log "`env | grep _vaddr`"
 
@@ -41,7 +42,7 @@ plat='-a x86.nz -b 64'
 
   echo $codo_main_paddr $codo_main_size
 
-  sed /^\$/d "$egg" | tr -s \  | envsubst
+  sed 's/\s*;.*//;/^$/d' "$egg" | tr -s \  | envsubst
 ) |
 
 # assemble and insert
