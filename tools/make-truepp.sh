@@ -24,27 +24,27 @@ fns=`printf '%s\n' codo_main codo_exit pico8_preprocess | sort`
 
   cat <<-EGG
   ; // (using x86_64 call convention)
-	; 
+  ; 
   ; // max uint or something
   ; #define BUF_SZ 0x4000
   ; // should use malloc/free directly?
-	; 
+  ; 
   ; char* in = codo_malloc(BUF_SZ);
   ; char* out = codo_malloc(BUF_SZ);
-	; 
-	; char* head;
-	; ssize_t sz;
-	; 
-	; head = in;
-	; while ((sz = read(STDIN_FILENO, in, BUF_SZ-(in-head)))) in+= sz;
-	; 
+  ; 
+  ; char* head;
+  ; ssize_t sz;
+  ; 
+  ; head = in;
+  ; while ((sz = read(STDIN_FILENO, in, BUF_SZ-(in-head)))) in+= sz;
+  ; 
   ; pico8_preprocess(in, out);
-	; 
-	; head = in;
-	; while ((sz = write(STDOUT_FILENO, out, BUF_SZ-(out-head)))) out+= sz;
-	; 
-	; codo_free(in);
-	; codo_free(out);
+  ; 
+  ; head = in;
+  ; while ((sz = write(STDOUT_FILENO, out, BUF_SZ-(out-head)))) out+= sz;
+  ; 
+  ; codo_free(in);
+  ; codo_free(out);
   ; return 0; // _exit(0);
 
   ; TODO: all
