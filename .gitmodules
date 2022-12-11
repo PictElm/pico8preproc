@@ -1,6 +1,0 @@
-[submodule "truepp/3rd/xed"]
-	path = truepp/3rd/xed
-	url = https://github.com/intelxed/xed.git
-[submodule "truepp/3rd/mbuild"]
-	path = truepp/3rd/mbuild
-	url = https://github.com/intelxed/mbuild.git

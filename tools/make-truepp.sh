@@ -1,21 +1,21 @@
 #!/bin/sh
-# Example: tools/make-truepp.sh hidden/versions/0.0.5/bin/pico-8/pico8 truepp05
+# Example: tools/make-truepp.sh 0.0.5 truepp05
 # TODO: find and solve this 'WARNING: Cannot find plugin constructor'
+log() { echo "$@" >&2; }
+die() { log "$@"; exit 1; }
 
-p8bin=$1
+p8bin=`${0%/*}/have-version.sh $1`/pico8 || die 'Cannot continue'
 truepp=${2:-./truepp}
 egg=${3:-`dirname $0`/make-truepp-egg.asm}
 
-log() { echo "$@" >/dev/tty; }
-die() { log "$@"; exit 1; }
-
 test -z "$p8bin"  && die "Usage: `basename $0` <p8bin> [<truepp> [<egg>]]"
-test -x "$p8bin"  || die "'$p8bin' is not an executable"
-test -e "$truepp" && die "Would override '$truepp'"
-test -f "$egg"    || die "Cannot read shellcode '$egg'"
+test -x "$p8bin"  || die "Not an executable: '$p8bin'"
+test -e "$truepp" && die "Would override: '$truepp'"
+test -f "$egg"    || die "Cannot read shellcode: '$egg'"
 
+# (note to self: _exit, _malloc and _free no longer used and _main only for injection address)
 fns=`printf '%s\n' codo_main codo_exit codo_malloc codo_free pico8_preprocess | sort`
-plat='-a x86.nz -b 64'
+asmbl='rz-asm -a x86.nz -b 64 -B -'
 
 # get info of needed symbols
 ( rz-bin -s "$p8bin" |
@@ -38,7 +38,7 @@ plat='-a x86.nz -b 64'
   set +a
   log "`env | grep _vaddr`"
 
-  log "available space: $codo_main_size bytes"
+  log "Available space: $codo_main_size bytes"
 
   echo $codo_main_paddr $codo_main_size
 
@@ -50,21 +50,21 @@ plat='-a x86.nz -b 64'
 
   egg=`mktemp`
   trap rm\ $egg EXIT
-  rz-asm $plat -o $at -B - >$egg
+  $asmbl -o $at >$egg
   len=`wc -c <$egg`
 
-  log "override from $at ($len bytes)"
+  log "Override from $at ($len bytes)"
 
   head -c $at "$p8bin"
   cat $egg
   #tail -c +$((at+len+1)) "$p8bin"
 
-  log "padding with 'nop's ($((size-len)) bytes)"
-  printf %$((size-len))s | tr \  `rz-asm $plat -B nop` | head -c $((size-len))
+  log "Padding with 'nop's ($((size-len)) bytes)"
+  printf %$((size-len))s | tr \  `echo nop $asmbl` | head -c $((size-len))
   tail -c +$((at+size+1)) "$p8bin"
 ) |
 
 # output into executable
 ( cat >"$truepp"
-	chmod +x "$truepp"
+  chmod +x "$truepp"
 )
