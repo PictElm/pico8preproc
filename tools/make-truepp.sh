@@ -1,6 +1,7 @@
 #!/bin/sh
 # Example: tools/make-truepp.sh 0.0.5 truepp05
 # TODO: find and solve this 'WARNING: Cannot find plugin constructor'
+# TODO: get rid of rizin (used: 'rz-bin -s' and 'rz-asm -B [-o]')
 log() { echo "$@" >&2; }
 die() { log "$@"; exit 1; }
 
@@ -15,7 +16,7 @@ test -f "$egg"    || die "Cannot read shellcode: '$egg'"
 
 # (note to self: _exit, _malloc and _free no longer used and _main only for injection address)
 fns=`printf '%s\n' codo_main codo_exit codo_malloc codo_free pico8_preprocess | sort`
-asmbl='rz-asm -a x86.nz -b 64 -B -'
+asmbl='rz-asm -a x86.nz -b 64 -B'
 
 # get info of needed symbols
 ( rz-bin -s "$p8bin" |
@@ -50,21 +51,27 @@ asmbl='rz-asm -a x86.nz -b 64 -B -'
 
   egg=`mktemp`
   trap rm\ $egg EXIT
-  $asmbl -o $at >$egg
+  $asmbl -o $at - >$egg
   len=`wc -c <$egg`
 
   log "Override from $at ($len bytes)"
+  if [ $size -lt $len ]
+    then
+      cp $egg "$truepp"
+      die "Not enough space.. saved egg: '$truepp'"
+  fi
 
   head -c $at "$p8bin"
   cat $egg
-  #tail -c +$((at+len+1)) "$p8bin"
+  tail -c +$((at+len+1)) "$p8bin"
 
-  log "Padding with 'nop's ($((size-len)) bytes)"
-  printf %$((size-len))s | tr \  `echo nop $asmbl` | head -c $((size-len))
-  tail -c +$((at+size+1)) "$p8bin"
+  #log "Padding with 'nop's ($((size-len)) bytes)"
+  #printf %$((size-len))s | tr \  `$asmbl nop`
+  #tail -c +$((at+size+1)) "$p8bin"
 ) |
 
 # output into executable
-( cat >"$truepp"
+( mkdir -p "${truepp%/*}"
+  cat >"$truepp"
   chmod +x "$truepp"
 )

@@ -3,8 +3,8 @@
 log() { echo "$@" >&2; }
 die() { log "$@"; exit 1; }
 
-cd "`dirname $0`/../.cache"
-ver=$1 # whenever/if changing from xyz to header
+cd "${0%/*}/../.cache"
+ver=$1
 
 test -f pico8_versions.csv || wget https://gist.githubusercontent.com/PictElm/9e1930781b8c541f7199059ccc08cf89/raw/8780d7459ee7efa18ab5c769d1da52598233d362/pico8_versions.csv
 test -z "$ver" && die 'No version code specified'
@@ -23,5 +23,4 @@ if mkdir "$at" 2>/dev/null
 fi
 
 test -x "$at/bin/pico-8/pico8" || die "Found item does not contain the binary executable at: '$at/bin/pico-8'"
-
 echo "$at/bin/pico-8"
