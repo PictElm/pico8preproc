@@ -1,7 +1,5 @@
 #!/bin/sh
 # Example: tools/make-truepp.sh 0.0.5 truepp05
-# TODO: find and solve this 'WARNING: Cannot find plugin constructor'
-# TODO: get rid of rizin (used: 'rz-bin -s' and 'rz-asm -B [-o]')
 log() { echo "$@" >&2; }
 die() { log "$@"; exit 1; }
 

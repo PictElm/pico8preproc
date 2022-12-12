@@ -22,5 +22,5 @@ if mkdir "$at" 2>/dev/null
     )
 fi
 
-test -x "$at/bin/pico-8/pico8" || die "Found item does not contain the binary executable at: '$at/bin/pico-8'"
+test -x "$at/bin/pico-8/pico8" || die "Found item does not contain the binary executable at: '$at/bin/pico-8/pico8'"
 echo "$at/bin/pico-8"
