@@ -27,5 +27,7 @@ end
 
 -- TODO: (among other things) proper typing
 
-local p = assert(for_ver '0.0.5', "preprocess not implemented for ..")
+-- YYY: temporary 'Usage: '..arg[0]..' <ver>'
+local v = assert(arg[1], "No version provided")
+local p = assert(for_ver(v), "Preprocess not implemented for "..v)
 io.write(p.pp(io.read('a')))
