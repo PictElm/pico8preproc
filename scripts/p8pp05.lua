@@ -36,7 +36,7 @@ function m.pp(source)
     until nil
 
     at = ln:find("if[( ]")
-    if at and not ln:find("then")
+    if at and (1 == at or '\n' == ln:sub(at-1, at-1) or ' ' == ln:sub(at-1, at-1)) and not ln:find("then")
       then
         local depth, op, cl = 1, ln:find("%(", at)
         while cl and 0 < depth
@@ -48,7 +48,7 @@ function m.pp(source)
             end
         end
         if cl
-          then ln = ln:sub(1, at+2)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end"
+          then ln = ln:sub(1, op-1)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end"
         end
     end
 

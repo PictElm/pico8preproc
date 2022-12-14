@@ -1,11 +1,12 @@
 #!/bin/sh -e
-# Usage: play-test.sh <ver> <test-name>
+# Usage: play-test.sh <ver> <test-name> [-f]
 log() { echo "$@" >&2; }
 die() { log "$@"; exit 1; }
 
 cd "${0%/*}/.."
 ver=$1
 tname=$2
+forceup=$3
 
 truepp=`tools/have-truepp.sh $ver` || die 'Cannot continue'
 p8pp="./main.lua $ver"
@@ -17,13 +18,14 @@ in=tests/in/$tname.p8.lua
 out=tests/out-$sver/$tname.lua
 test -f "$in" || die "Test not found: $in"
 
-test -f "$out" || {
-  mkdir -p "${out%/*}"
-  $truepp <"$in" >"$out"
-}
+if test -f "$out" || test f = "${forceup#-}"
+  then
+    mkdir -p "${out%/*}"
+    $truepp <"$in" >"$out"
+fi
 
 tmp=`mktemp --suffix=.lua`
 trap "rm $tmp" EXIT
 $p8pp <"$in" >$tmp
 
-${diff:-`command -v colordiff || echo diff; echo -u`} "$out" $tmp && log 'No diff (yey)'
+${diff:-`command -v colordiff || echo diff; echo -u`} $tmp "$out" && log 'No diff (yey)'

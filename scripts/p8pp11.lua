@@ -14,44 +14,69 @@ end
 ---@return string
 ---@return number|string
 ---@return string
-local function next(src)
+local function lex(src)
   local ident = ""
 
-  local s = src:find("[^ %t]")
-  if not s then return "", -1000, "" end
+  local s = src:find("[^ \t]")
 
   local function su(o) return src:sub(s, o and s+o-1) end
-  local function ret(skip, tok) return src:sub(s+skip), tok, ident end
+  local function ma(t) return src:match("^"..t, s) end
+  local function ret(skip, tok) return skip and src:sub(s+skip) or "", tok, ident end
+
+  if not s then return ret(nil, -1000) end
 
   if "--" == su(2)
-    then return ret((su():find('%n', s) or #su()+1)-1, -995)
+    then
+      local t = ma("--[^\n]*\n")
+      return ret(t and #t-1, -995)
   end
 
-  if src:match("^[^A-Za-z]", s) -- to test in truepp: how does it deal with idents starting with '_' again?
+  if ma("[^A-Za-z]")
     then
-      if print 'niy: /[0-9]/' -- need to play around with it (seems it also accepts 0x and decimal, how hard can it be to implement?)
+      if ma("[0-9]")
         then
-          ident = "the literal itself"
-          return ret(42, -997)
+          ident = ma("[0-9x.]+")
+          return ret(#ident, -997)
       end
 
-      if print 'niy: string' -- same as above, but doesnt look like it handes escaping quotes...
-        then
-          ident = "the string itself (with quotes)"
-          return ret(42, -996)
+      do
+        local q = ma("[\"']")
+        if q
+          then
+            ident = ma(q..".*"..q)
+            return ret(#ident, -996)
+        end
       end
 
-      if ':' == su(1) or '\n' == su(1)
+      local c = su(1)
+      if ':' == c or '\n' == c
         then return ret(1, -999)
       end
 
-      print 'niy: <=>~!+-*/% (both <op>= and <op>)'
+      local cc = su(2)
+      if "//" == cc
+        then
+          local t = ma("//[^\n]*\n")
+          return ret(t and #t-1, -999)
+      end
+      local is2 = ({
+        ["<="]= -969,
+        [">="]= -968,
+
+        ["<>"]= -966, ["~="]= -966, ["!="]= -966,
+        ["=="]= -965,
+        ["+="]= -964,
+      })[cc]
+      if is2
+        then return ret(2, is2)
+      end
+
+      return ret(1, c)
   end
 
-  print 'niy: scan word (ident/kw)'
-  ident = "coucou"
+  ident = ma("[A-Za-z0-9_]+")
 
-  local map = {
+  local tok = ({
     ["function"]= -993,
     ["end"]=      -992, ["endif"]= -992, ["next"]= -992,
     ["for"]=      -991,
@@ -71,10 +96,10 @@ local function next(src)
     ["not"]=      -975,
     ["and"]=      -974,
     ["or"]=       -973,
-  }
-  local tok = map[ident]
+  })[ident]
 
-  if not first_char and '.' ~= prev and api_functions[ident]
+  -- the '.' check is just used for syntax highlight, so ok to ignore here
+  if --[['.' ~= prev and]] api_functions[ident]
     then tok = -978
   end
 
@@ -88,10 +113,10 @@ function m.pp(source)
   if true then
     local tok, ident
     repeat
-      source, tok, ident = next(source)
+      source, tok, ident = lex(source)
       print(tok, ident)
     until -1000 == tok
-    return "niy"
+    return "(niy)"
   end
 
   local result = ""
@@ -123,7 +148,7 @@ function m.pp(source)
     until nil
 
     at = ln:find("if[( ]")
-    if at and not ln:find("then")
+    if at and (1 == at or '\n' == ln:sub(at-1, at-1) or ' ' == ln:sub(at-1, at-1)) and not ln:find("then")
       then
         local depth, op, cl = 1, ln:find("%(", at)
         while cl and 0 < depth
@@ -135,7 +160,7 @@ function m.pp(source)
             end
         end
         if cl
-          then ln = ln:sub(1, at+2)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end"
+          then ln = ln:sub(1, op-1)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end"
         end
     end
 
