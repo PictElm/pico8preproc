@@ -11,7 +11,7 @@ for k=1,#api_functions
 end
 
 ---@param src string
----@return string
+---@return number
 ---@return number|string
 ---@return string
 local function lex(src)
@@ -21,7 +21,8 @@ local function lex(src)
 
   local function su(o) return src:sub(s, o and s+o-1) end
   local function ma(t) return src:match("^"..t, s) end
-  local function ret(skip, tok) return skip and src:sub(s+skip) or "", tok, ident end
+  ---@param tok number|string
+  local function ret(skip, tok) return skip and s+skip or #src, tok, ident end
 
   if not s then return ret(nil, -1000) end
 
@@ -110,15 +111,6 @@ end
 ---@param source string
 ---@return string
 function m.pp(source)
-  if true then
-    local tok, ident
-    repeat
-      source, tok, ident = lex(source)
-      print(tok, ident)
-    until -1000 == tok
-    return "(niy)"
-  end
-
   local result = ""
 
   local maxIter = 16000
@@ -127,6 +119,16 @@ function m.pp(source)
   repeat
     local lnend = source:find('\n', cursor)
     local ln = source:sub(cursor, lnend)
+
+    if '\n' == ln:sub(-1) then ln = ln:sub(1, -2) end
+    local co_at = ln:find("%-%-[^\n]*$")
+    if co_at
+      then
+        local lnn = ln:sub(1, co_at-1)
+        local _, dq = lnn:gsub('"', "")
+        local _, sq = lnn:gsub("'", "")
+        if dq % 2 == 0 and sq % 2 == 0 then ln = lnn end
+    end
 
     local at
     repeat
@@ -143,7 +145,46 @@ function m.pp(source)
         else
           local backw = ln:sub(1, at-1):reverse()
           local a, b = backw:find("%S+")
-          ln = backw:sub(a):reverse().." = "..backw:sub(a, b):reverse().." "..c.." "..ln:sub(at+2)
+
+          local nxtstmt, mp_state, mp_depth = at+2, 0, 0
+          while nxtstmt <= #ln
+            do
+              local off, tok = lex(ln:sub(nxtstmt))
+
+              if -1000 == tok --or -999 == tok -- TODO/FIXME: no, still inaccurate
+                then
+                  nxtstmt = nxtstmt+1
+                  break
+              end
+
+              if 1 == mp_state
+                then
+                  if '[' == tok or '(' == tok
+                    then mp_depth = mp_depth+1
+                  elseif ']' == tok or ')' == tok
+                    then mp_depth = mp_depth-1
+                  end
+                  nxtstmt = nxtstmt+off-1
+                  if 0 == mp_depth then mp_state = 2 end
+
+              elseif '[' == tok or '(' == tok
+                then
+                  mp_state, mp_depth = 1, 1
+                  nxtstmt = nxtstmt+off-1
+
+              elseif 'string' == type(tok) and ("#%*+-./^"):find("%"..tok)
+                then
+                  mp_state = 0
+                  nxtstmt = nxtstmt+off-1
+
+                else
+                  if 2 == mp_state then break end
+                  nxtstmt = nxtstmt+off-1
+                  mp_state = 2
+              end
+          end
+
+          ln = backw:sub(a):reverse().." = "..backw:sub(a, b):reverse().." "..c.." ("..ln:sub(at+2, nxtstmt-1)..") "..ln:sub(nxtstmt+1)
       end
     until nil
 
@@ -160,13 +201,13 @@ function m.pp(source)
             end
         end
         if cl
-          then ln = ln:sub(1, op-1)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end"
+          then ln = ln:sub(1, op-1)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end "
         end
     end
 
-    result = result..ln
+    result = result..ln..'\n'
 
-    if not lnend then break end
+    if not lnend or #source == lnend then break end
     cursor = lnend+1
     maxIter = maxIter-1
   until 0 == maxIter

@@ -1,6 +1,10 @@
 a = 2
-print('a: '..a)
-a = a + ( 1) 
+print('a: '..a) 
+"fn() -- not com"
+"fn(') -- not com"
+"fn(\") 
+'' fn() 
+a = a + ( 1) print(a)
 
 // comment2
 

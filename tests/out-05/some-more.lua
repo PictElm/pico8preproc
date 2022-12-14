@@ -4,12 +4,12 @@ print('a: '..a) -- comment0
 "fn(') -- not com"
 "fn(\") -- yes com" -- "
 '' fn() -- yes com
-a+= 1 print(a)
+a = a +  1 print(a)
 -- comment1
 // comment2
 -->8
 self:fles()
-if (a != 3) a-= 3
-print('last line')
-a /=b+=2
-b*=a
+if (a ~= 3) then  a = a -  3
+ endprint('last line')
+a = a / b = = = / b + 2
+b = b * a
