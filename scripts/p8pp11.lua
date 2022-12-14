@@ -3,8 +3,6 @@ local m = {
   v= 11,
 }
 
--- TODO: not done
-
 local api_functions = { "load", "save", "folder", "files", "run", "resume", "reboot", "stat", "flip", "clip", "pget", "pset", "sget", "sset", "fget", "fset", "print", "cursor", "color", "cls", "camera", "circ", "circfill", "line", "rect", "rectfill", "pal", "palt", "spr", "sspr", "add", "del", "all", "foreach", "count", "btn", "btnp", "sfx", "music", "mget", "mset", "map", "peek", "poke", "memcpy", "reload", "cstore", "memset", "max", "min", "mid", "flr", "cos", "sgn", "atan2", "sqrt", "abs", "rnd", "seed", "band", "bor", "bxor", "bnot", "bshl", "bshr" };
 for k=1,#api_functions
   do api_functions[api_functions[k]] = true
