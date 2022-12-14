@@ -28,4 +28,4 @@ tmp=`mktemp --suffix=.lua`
 trap "rm $tmp" EXIT
 $p8pp <"$in" >$tmp
 
-${diff:-`command -v colordiff || echo diff; echo -u`} $tmp "$out" && log 'No diff (yey)'
+${diff:-`command -v colordiff || echo diff; printf %s\  -u`} $tmp "$out" && log 'No diff (yey)'

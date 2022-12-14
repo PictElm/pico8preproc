@@ -22,7 +22,7 @@ local function lex(src)
   local function su(o) return src:sub(s, o and s+o-1) end
   local function ma(t) return src:match("^"..t, s) end
   ---@param tok number|string
-  local function ret(skip, tok) return skip and s+skip or #src, tok, ident end
+  local function ret(skip, tok) return skip and s+skip-1 or #src, tok, ident end
 
   if not s then return ret(nil, -1000) end
 
@@ -146,14 +146,14 @@ function m.pp(source)
           local backw = ln:sub(1, at-1):reverse()
           local a, b = backw:find("%S+")
 
-          local nxtstmt, mp_state, mp_depth = at+2, 0, 0
+          local nxtstmt, to_eol, mp_state, mp_depth = at+2, false, 0, 0
           while nxtstmt <= #ln
             do
               local off, tok = lex(ln:sub(nxtstmt))
 
-              if -1000 == tok --or -999 == tok -- TODO/FIXME: no, still inaccurate
+              if -1000 == tok or -999 == tok
                 then
-                  nxtstmt = nxtstmt+1
+                  nxtstmt, to_eol = nxtstmt+off-1, true
                   break
               end
 
@@ -164,27 +164,27 @@ function m.pp(source)
                   elseif ']' == tok or ')' == tok
                     then mp_depth = mp_depth-1
                   end
-                  nxtstmt = nxtstmt+off-1
+                  nxtstmt = nxtstmt+off
                   if 0 == mp_depth then mp_state = 2 end
 
               elseif '[' == tok or '(' == tok
                 then
                   mp_state, mp_depth = 1, 1
-                  nxtstmt = nxtstmt+off-1
+                  nxtstmt = nxtstmt+off
 
               elseif 'string' == type(tok) and ("#%*+-./^"):find("%"..tok)
                 then
                   mp_state = 0
-                  nxtstmt = nxtstmt+off-1
+                  nxtstmt = nxtstmt+off
 
                 else
                   if 2 == mp_state then break end
-                  nxtstmt = nxtstmt+off-1
+                  nxtstmt = nxtstmt+off
                   mp_state = 2
               end
           end
 
-          ln = backw:sub(a):reverse().." = "..backw:sub(a, b):reverse().." "..c.." ("..ln:sub(at+2, nxtstmt-1)..") "..ln:sub(nxtstmt+1)
+          ln = backw:sub(a):reverse().." = "..backw:sub(a, b):reverse().." "..c.." ("..ln:sub(at+2, to_eol and -1 or nxtstmt-1)..") "..ln:sub(nxtstmt+1)
       end
     until nil
 
