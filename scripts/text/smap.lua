@@ -2,30 +2,121 @@
 local json = require '3rd/json_lua/json'
 local vlq = require 'scripts/text/vlq'
 
--- TODO: maybe replace the return nil with proper error (to make pcall and diag better)
+-- TODO: maybe replace the returns nil with proper error (to make pcall and diag better)
 
----@alias location {line:integer, column:integer}
 ---@class m
 local smap = {}
 
+-- TODO: (maybe) class / helper functions / ...
+---@alias location {line: integer, column: integer}
+
 ---@class sourcemap : m
----@field   version        integer       #file version
+---@field   version        integer       #spec version
 ---@field   file           string?       #name of the generated code that this source map is associated with
----@field   sourceRoot     string?       #source root; this value is prepended to the indivitual entries in the "source" field
----@field   sources        string[]      #list of original sources used by the "mappings" field
----@field   sourcesContent (string?)[]?  #list of source content when the "source" can't be hosted
----@field   names          string[]      #list of symbol names used by the "mappings" field
+---@field   sourceRoot     string?       #source root, prepended to the indivitual entries in the `source` field
+---@field   sources        string[]      #list of original sources used by the `mappings` field
+---@field   sourcesContent (string?)[]?  #list of source content when the `source` can't be hosted
+---@field   names          string[]      #list of symbol names used by the `mappings` field
 ---@field   mappings       string        #string with the encoded mapping data
 
----@param t sourcemap #sourcemap-like
-local function intosourcemap(t)
-  return setmetatable(t, {__index= smap}) --[[@as sourcemap]]
+---@param self sourcemap #sourcemap-like
+local function intosourcemap(self)
+  ---@class segment
+  ---@field   ccol  integer    #starting column of the current line
+  ---@field   idx   integer?   #index in `sources`
+  ---@field   oloc  location?  #location in original source
+  ---@field   name  integer?   #index in `names`
+
+  ---@type segment[][]
+  local lines, linecount = {}, 0
+  local at, len = 1, #self.mappings
+  while at <= len
+    do
+      local semi = self.mappings:find(';', at) or len+1
+      local line = self.mappings:sub(at, semi-1)
+
+      -- YYY: not sure whether to keep it 0-b
+      --      or translate it to 1-b...
+      local abs_ccol = 0
+      local abs_idx = 0
+      local abs_oline = 0
+      local abs_ocol = 0
+      local abs_name = 0
+
+      ---@type segment[]
+      local segments, segmentcount = {}, 0
+      local att, lenn = 1, #line
+      while att <= lenn
+        do
+          local comm = line:find(',', att) or lenn+1
+          local segment = line:sub(att, comm-1)
+
+          local rel_ccol  -- 0-based starting column of the current line
+              , rel_idx   -- (optional) 0-based index in `sources`
+              , rel_oline -- (optional) 0-based starting line in original source
+              , rel_ocol  -- (optional) 0-based starting column in original source
+              , rel_name  -- (optional) 0-based index in `names`
+            = vlq.decode(segment)
+
+          -- TODO: proper throw on invalid? or let the `+` fail?
+
+          ---@type segment
+          local it = {ccol= abs_ccol+rel_ccol} --{cloc= {line= linecount, column= abs_ccol+rel_ccol}}
+          abs_ccol = it.ccol
+          if rel_idx
+            then
+              it.idx = abs_idx+rel_idx
+              abs_idx = it.idx
+              it.oloc = {line= abs_oline+rel_oline, column= abs_ocol+rel_ocol}
+              abs_oline = it.oloc.line
+              abs_ocol = it.oloc.column
+              if rel_name
+                then
+                  it.name = abs_name+rel_name
+                  abs_name = it.name
+              end
+          end
+
+          segmentcount = segmentcount+1
+          segments[segmentcount] = it
+          att = comm+1
+      end -- while (loop reading a line off of `mappings`)
+
+
+      linecount = linecount+1
+      lines[linecount] = segments
+      at = semi+1
+  end -- while (loop reading `mappings`)
+
+  return setmetatable(self, {
+    __index= smap,
+
+    --- ZZZ
+    _playground_dumpinternal= function()
+      for k,v in ipairs(lines)
+        do
+          print("line "..k)
+          for _,it in ipairs(v)
+            do print("", it.ccol, it.oloc.column)
+          end
+      end
+    end,
+
+    updatemappings= function()
+      assert(nil, "niy: update mappings for "..self.file)
+    end,
+
+    updateinternal= function()
+      assert(nil, "niy: update internal for "..self.file)
+    end,
+  }) --[[@as sourcemap]]
 end
 
+-- XXX: if ever, may support
 --local indexmap_mt = {__index= m}  (niy)
 -- @alias section {offset: location; url: string?; map: sourcemap?}
 -- @class indexmap : m
--- @field   version        integer       #file version
+-- @field   version        integer       #spec version
 -- @field   file           string?       #name of the generated code that this source map is associated with
 -- @field   sections       section[]     #sections with their own sourcemaps (sorted and non-overlapping)
 
@@ -69,10 +160,10 @@ end
 ---@return string
 function smap.encode(self)
   local mt = getmetatable(self)
-  assert(sourcemap_mt == mt, "not a sourcemap, don't wanna deal with that")
-  local r = json.encode(setmetatable(self, nil))
-  setmetatable(self, mt)
-  return r
+  assert(smap == mt.__index, "not a sourcemap, don't wanna deal with that")
+  mt.updatemappings()
+  -- YYY: safe as long as mt has no `__pairs` and no `__len`
+  return json.encode(self)
 end
 
 ---returns the path for the source by its index; the index is assumed to be correct
@@ -110,13 +201,26 @@ function smap.getsourcecontent(self, idx)
   return nil
 end
 
----transform a location in `file` to it's original location in one of `sources` (which is return as its index)
+---transform a location in `file` to its original location in one of `sources` (which is return as its index)
 ---@param self sourcemap
 ---@param infile location #location in `file`
 ---@return location #location in the source
 ---@return integer #index of the source in `sources`
 function smap.forward(self, infile)
-  return {}, 0
+  local mt = getmetatable(self)
+  mt.updateinternal()
+  return mt.forward(infile)
+end
+
+---transform a location in a `sources` to its resulting location in `file`
+---@param self sourcemap
+---@param insource location #location in `file`
+---@param idx integer #index in `sources`
+---@return location #location in the source
+function smap.backward(self, insource, idx)
+  local mt = getmetatable(self)
+  mt.updateinternal()
+  return mt.backward(insource, idx)
 end
 
 local function _playground()
@@ -134,74 +238,7 @@ local function _playground()
   local csource = readfile('js')
   local self = assert(smap.decode(readfile('js.map')))
 
-  ---@class segment
-  ---@field   cline  integer   #ksadfklasd (TODO)
-  ---@field   idx    integer   #index in `sources`
-  ---@field   oloc   location  #location in original source
-  ---@field   name   integer   #index in `names`
-
-  ---@type segment[][]
-  local lines = {}
-  local at, len = 1, #self.mappings
-  while at <= len
-    do
-      local semi = self.mappings:find(';', at) or len+1
-      local line = self.mappings:sub(at, semi-1)
-
-      local abs_cline = 1
-      local abs_idx = 1
-      local abs_oline = 1
-      local abs_ocol = 1
-      local abs_name = 1
-
-      ---@type segment[]
-      local segments = {}
-      local att, lenn = 1, #line
-      while att <= lenn
-        do
-          local comm = line:find(',', att) or lenn+1
-          local segment = line:sub(att, comm-1)
-
-          local rel_cline -- 0-based starting column of the current line
-              , rel_idx   -- (optional) 0-based index in `sources`
-              , rel_oline -- (optional) 0-based starting line in original source
-              , rel_ocol  -- (optional) 0-based starting column in original source
-              , rel_name  -- (optional) 0-based index in `names`
-            = vlq.decode(segment)
-
-          ---@type segment
-          local it = {cline= abs_cline+rel_cline}
-          abs_cline = it.cline
-          if rel_idx
-            then
-              it.idx = abs_idx+rel_idx
-              abs_idx = it.idx
-              it.oloc = {line= abs_oline+rel_oline, column= abs_ocol+rel_ocol}
-              abs_oline = it.oloc.line
-              abs_ocol = it.oloc.column
-              if rel_name
-                then
-                  it.name = abs_name+rel_name
-                  abs_name = it.name
-              end
-          end
-
-          segments[#segments+1] = it
-          att = comm+1
-      end
-
-
-      lines[#lines+1] = segments
-      at = semi+1
-  end
-
-  for k,v in ipairs(lines)
-    do
-      print("line "..k)
-      for _,it in ipairs(v)
-        do print("", it.cline-1, it.oloc.column-1)
-      end
-  end
+  getmetatable(self)._playground_dumpinternal()
 
   -- local infile = {}
   -- local insource, sourceidx = self:forward(infile)
