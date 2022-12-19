@@ -1,14 +1,10 @@
 ---@type {decode: fun(s: string): table; encode: fun(t: table): string}
 local json = require '3rd/json_lua/json'
 local vlq = require 'scripts/text/vlq'
-
--- TODO: maybe replace the returns nil with proper error (to make pcall and diag better)
+local loc = require 'scripts/text/loc'
 
 ---@class m
 local smap = {}
-
--- TODO: (maybe) class / helper functions / ...
----@alias location {line: integer, column: integer}
 
 ---@class sourcemap : m
 ---@field   version        integer       #spec version
@@ -22,94 +18,148 @@ local smap = {}
 ---@param self sourcemap #sourcemap-like
 local function intosourcemap(self)
   ---@class segment
-  ---@field   ccol  integer    #starting column of the current line
+  ---@field   cloc  integer    #location in result file
   ---@field   idx   integer?   #index in `sources`
   ---@field   oloc  location?  #location in original source
   ---@field   name  integer?   #index in `names`
 
   ---@type segment[][]
-  local lines, linecount = {}, 0
-  local at, len = 1, #self.mappings
-  while at <= len
-    do
-      local semi = self.mappings:find(';', at) or len+1
-      local line = self.mappings:sub(at, semi-1)
+  local internal
+  local intup, mapup = false, false
 
-      -- YYY: not sure whether to keep it 0-b
-      --      or translate it to 1-b...
-      local abs_ccol = 0
-      local abs_idx = 0
-      local abs_oline = 0
-      local abs_ocol = 0
-      local abs_name = 0
-
-      ---@type segment[]
-      local segments, segmentcount = {}, 0
-      local att, lenn = 1, #line
-      while att <= lenn
-        do
-          local comm = line:find(',', att) or lenn+1
-          local segment = line:sub(att, comm-1)
-
-          local rel_ccol  -- 0-based starting column of the current line
-              , rel_idx   -- (optional) 0-based index in `sources`
-              , rel_oline -- (optional) 0-based starting line in original source
-              , rel_ocol  -- (optional) 0-based starting column in original source
-              , rel_name  -- (optional) 0-based index in `names`
-            = vlq.decode(segment)
-
-          -- TODO: proper throw on invalid? or let the `+` fail?
-
-          ---@type segment
-          local it = {ccol= abs_ccol+rel_ccol} --{cloc= {line= linecount, column= abs_ccol+rel_ccol}}
-          abs_ccol = it.ccol
-          if rel_idx
-            then
-              it.idx = abs_idx+rel_idx
-              abs_idx = it.idx
-              it.oloc = {line= abs_oline+rel_oline, column= abs_ocol+rel_ocol}
-              abs_oline = it.oloc.line
-              abs_ocol = it.oloc.column
-              if rel_name
-                then
-                  it.name = abs_name+rel_name
-                  abs_name = it.name
-              end
-          end
-
-          segmentcount = segmentcount+1
-          segments[segmentcount] = it
-          att = comm+1
-      end -- while (loop reading a line off of `mappings`)
-
-
-      linecount = linecount+1
-      lines[linecount] = segments
-      at = semi+1
-  end -- while (loop reading `mappings`)
-
-  return setmetatable(self, {
+  local mt
+  mt = {
     __index= smap,
 
     --- ZZZ
     _playground_dumpinternal= function()
-      for k,v in ipairs(lines)
+      mt.updateinternal()
+      for k,v in ipairs(internal)
         do
           print("line "..k)
           for _,it in ipairs(v)
-            do print("", it.ccol, it.oloc.column)
+            do print("", it.cloc.column, it.idx, it.oloc.line, it.oloc.column, it.name)
           end
       end
     end,
 
     updatemappings= function()
-      assert(nil, "niy: update mappings for "..self.file)
+      if mapup then return end
+      local text = ""
+
+      local sep = ''
+      for i=1,#internal
+        do
+          local line = internal[i]
+          text = text..sep
+          sep = ';'
+
+          local abs_ccol = 0
+          local abs_idx = 0
+          local abs_oline = 0
+          local abs_ocol = 0
+          local abs_name = 0
+
+          local sepp = ''
+          for j=1,#line
+            do
+              local segment = line[j]
+              text = text..sepp
+              sepp = ','
+
+              rel_ccol = segment.ccol-abs_ccol
+              abs_ccol = segment.ccol
+              if segment.idx
+                then
+                  rel_idx = segment.idx-abs_idx
+                  abs_idx = segment.idx
+                  rel_oline = segment.oloc.line-abs_oline
+                  rel_ocol = segment.oloc.column-abs_ocol
+                  abs_oline = segment.oloc.line
+                  abs_ocol = segment.oloc.column
+                  if segment.name
+                    then
+                      rel_name = segment.name-abs_name
+                      abs_name = segment.name
+                  end
+              end
+
+              text = text..vlq.encode(rel_ccol, rel_idx, rel_oline, rel_ocol, rel_name)
+          end -- for each segment
+      end -- for each line
+
+      self.mappings = text
+      mapup = true
     end,
 
     updateinternal= function()
-      assert(nil, "niy: update internal for "..self.file)
+      if intup then return end
+
+      ---@type segment[][]
+      local lines, linecount = {}, 0
+      local at, len = 1, #self.mappings
+      while at <= len
+        do
+          local semi = self.mappings:find(';', at) or len+1
+          local line = self.mappings:sub(at, semi-1)
+
+          local abs_ccol = 0
+          local abs_idx = 0
+          local abs_oline = 0
+          local abs_ocol = 0
+          local abs_name = 0
+
+          ---@type segment[]
+          local segments, segmentcount = {}, 0
+          local att, lenn = 1, #line
+          while att <= lenn
+            do
+              local comm = line:find(',', att) or lenn+1
+              local segment = line:sub(att, comm-1)
+
+              local rel_ccol  -- 0-based starting column of the current line
+                  , rel_idx   -- (optional) 0-based index in `sources`
+                  , rel_oline -- (optional) 0-based starting line in original source
+                  , rel_ocol  -- (optional) 0-based starting column in original source
+                  , rel_name  -- (optional) 0-based index in `names`
+                = vlq.decode(segment)
+
+              -- TODO: proper throw on invalid? or let the `+` fail?
+
+              ---@type segment
+              local it = {cloc= loc.new(linecount, abs_ccol+rel_ccol)}
+              abs_ccol = it.cloc.column
+              if rel_idx
+                then
+                  it.idx = abs_idx+rel_idx
+                  abs_idx = it.idx
+                  it.oloc = loc.new(abs_oline+rel_oline, abs_ocol+rel_ocol)
+                  abs_oline = it.oloc.line
+                  abs_ocol = it.oloc.column
+                  if rel_name
+                    then
+                      it.name = abs_name+rel_name
+                      abs_name = it.name
+                  end
+              end
+
+              segmentcount = segmentcount+1
+              segments[segmentcount] = it
+              att = comm+1
+          end -- while (loop reading a line off of `mappings`)
+
+
+          linecount = linecount+1
+          lines[linecount] = segments
+          at = semi+1
+      end -- while (loop reading `mappings`)
+
+      internal = lines
+      intup = true
     end,
-  }) --[[@as sourcemap]]
+  }
+
+  return setmetatable(self, mt) --[[@as sourcemap]]
 end
 
 -- XXX: if ever, may support
@@ -238,6 +288,7 @@ local function _playground()
   local csource = readfile('js')
   local self = assert(smap.decode(readfile('js.map')))
 
+  print("self.mappings: _"..self.mappings.."_")
   getmetatable(self)._playground_dumpinternal()
 
   -- local infile = {}

@@ -16,6 +16,7 @@ function vlq.encode(...)
   for k=1,l.n
     do
       local n = l[k]
+      if not n then break end -- maybe just don't use table.pack
       local sign = n < 0
       if sign then n = -n end
       local s = b64e[(15 < n and 32 or 0) | (n & 15) << 1 | (sign and 1 or 0)]
