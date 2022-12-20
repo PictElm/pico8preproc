@@ -2,22 +2,45 @@
 local loc = {}
 
 ---@class location : loc_m
----@field   line   integer  #warning: it is 0-based
----@field   column integer  #warning: it is 0-based
+---@field   line   integer  #(read-only) warning: it is 0-based
+---@field   column integer  #(read-only) warning: it is 0-based
+---@field   tag    any?     #free field
 ---@operator add(integer): location
 ---@operator sub(integer): location
 ---@operator concat(string): location
 ---@operator div(location): string
+---@operator mod(location): range
 ---@operator bnot(location): string
 ---@operator unm: location
+
+---@class range
+---@field   from location  #(read-only)
+---@field   to   location  #(read-only)
+--- operator concat(string): range
+---@operator len(string): integer
+local range_mt = {}
+---@return range
+local function range(from, to)
+  return setmetatable({from= from, to= to}, {
+    -- __concat= function(self, other)
+    --   assert(nil, "no")
+    --   assert('table' == type(self) and 'table' == type(other))
+    --   self.to = other.to
+    --   return self
+    -- end,
+    __len= function(self) return -self.to - -self.from end,
+    __tostring= function(self) return self.from/self.to end,
+  })
+end
 
 ---@param line integer?
 ---@param column integer?
 ---@param text string?
+---@param tag any?
 ---@return location
-function loc.new(line, column, text, offset)
+function loc.new(line, column, text, tag, offset)
   assert(not line or column, "line given but not column")
-  local _self = {line= line or 0, column= column or 0}
+  local _self = {line= line or 0, column= column or 0, tag= tag}
 
   local function bind(newtext)
     text = newtext
@@ -33,8 +56,11 @@ function loc.new(line, column, text, offset)
   end
 
   if not offset
-    then if line and text then bind(text) end
-    else offset = 1
+    then
+      if line and text
+        then bind(text)
+        else offset = 1
+      end
   end
   if not text then text = "" end
 
@@ -73,7 +99,7 @@ function loc.new(line, column, text, offset)
       if nl
         then
           local _, nlcount = s:gsub('\n', ' ')
-          self.line = nlcount
+          self.line = self.line-nlcount
           self.column = (text:sub(1, at-1-nl):reverse():find('\n') or at-1-nl)-1
         else
           self.column = self.column-by
@@ -100,6 +126,10 @@ function loc.new(line, column, text, offset)
       if till < 0 or till <= offset then return "" end
       return text:sub(offset, till)
     end,
+    __mod= function(self, mate)
+      assert(-self < -mate)
+      return range(self, mate)
+    end,
 
     __bnot= function() return text:sub(offset) end,
     __unm= function() return offset end,
@@ -110,15 +140,16 @@ end
 
 ---@param off integer
 ---@param text string
+---@param tag any
 ---@return location
-function loc.fromoffset(off, text)
-  return loc.new(nil, nil, text)+off
+function loc.fromoffset(off, text, tag)
+  return loc.new(nil, nil, text, tag)+off
 end
 
 ---@param self location
 ---@return location
 function loc.copy(self)
-  return loc.new(self.line, self.column, tostring(self), -self)
+  return loc.new(self.line, self.column, tostring(self), self.tag, -self)
 end
 
 ---@param self location
@@ -131,7 +162,7 @@ end
 ---@param self location
 ---@return string
 function loc.repr(self)
-  return self.line..':'..self.column
+  return (self.tag and self.tag..":" or "")..self.line..':'..self.column
 end
 
 return loc

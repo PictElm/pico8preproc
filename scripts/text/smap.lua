@@ -24,33 +24,12 @@ local function intosourcemap(self)
   ---@field   name  integer?   #index in `names`
 
   ---@type segment[][]
-  local internal
+  local internal = {}
   local intup, mapup = false, false
 
   local mt
   mt = {
     __index= smap,
-
-    --- ZZZ
-    _playground_getinternal= function()
-      mt.updateinternal()
-      return internal
-    end,
-    _playground_dumpinternal= function()
-      mt.updateinternal()
-      for k,v in ipairs(internal)
-        do
-          print("line "..k)
-          for _,it in ipairs(v)
-            do
-              print(""
-                , self.file..':'..it.cloc:repr()
-                , it.idx and self:getsourcepath(it.idx)..':'..it.oloc:repr()
-                , it.name or ""
-                )
-          end
-      end
-    end,
 
     updatemappings= function()
       if mapup then return end
@@ -174,6 +153,8 @@ local function intosourcemap(self)
     end,
   }
 
+  mt.updateinternal()
+
   return setmetatable(self, mt) --[[@as sourcemap]]
 end
 
@@ -187,13 +168,13 @@ end
 
 ---create a new empty sourcemap object
 ---@param file string
----@param sourceRoot string
+---@param sourceRoot string?
 ---@return sourcemap
 function smap.new(file, sourceRoot)
   return intosourcemap({
     version= 3,
     file= file,
-    sourceRoot= sourceRoot,
+    sourceRoot= sourceRoot or "",
     sources= {},
     --sourcesContent= {},
     names= {},
@@ -285,68 +266,5 @@ function smap.backward(self, insource, idx)
   mt.updateinternal()
   return mt.backward(insource, idx)
 end
-
-local function _playground()
-  local root = "tests/smap/"
-  local name = "helloworld"
-  local function readfile(ext, n)
-    local f = assert(io.open(root..(n or name).."."..ext))
-    ---@type string
-    local b = f:read('a')
-    f:close()
-    return b
-  end
-
-  local osource = readfile('coffee')
-  local csource = readfile('js')
-  local self = assert(smap.decode(readfile('js.map')))
-
-  print("self.mappings: _"..self.mappings.."_")
-  getmetatable(self)._playground_dumpinternal()
-  print "====="
-
-  print("file: "..self.file)
-  print("sources:")
-  local colors = {reset= "\x1b[m"}
-  for k=0,#self.sources-1
-    do
-      colors[k] = "\x1b["..(36-k).."m"
-      print("   "..colors[k]..self:getsourcepath(k)..colors.reset)
-  end
-  print()
-
-  ---@type segment[][]
-  local internal = getmetatable(self)._playground_getinternal()
-  local lala = loc.new(0, 0, csource)
-
-  for i=1,#internal
-    do
-      local segments = internal[i]
-      print("\nline "..i.." ("..#segments.." segment-s):")
-
-      for j=1,#segments-1
-        do
-          local idx = segments[j].idx
-          local from = segments[j].cloc:copy():bind(csource)
-          local till = segments[j+1].cloc:copy():bind(csource)
-          local text = from/till
-          io.write("["..lala/from.."]")
-          io.write(colors[idx]..text..colors.reset)
-          lala = till
-      end
-
-      local idx = segments[#segments].idx
-      local last = segments[#segments].cloc:copy():bind(csource)
-      local eol = loc.new(last.line+1, 0, csource)-1
-      local text = last/eol
-      io.write(lala/last)
-      io.write(colors[idx]..text..colors.reset)
-      lala = eol
-  end
-
-  -- local infile = {}
-  -- local insource, sourceidx = self:forward(infile)
-end
-_playground()
 
 return smap
