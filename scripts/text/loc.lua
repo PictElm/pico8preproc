@@ -162,7 +162,7 @@ end
 ---@param self location
 ---@return string
 function loc.repr(self)
-  return (self.tag and self.tag..":" or "")..self.line..':'..self.column
+  return (self.tag and self.tag..":" or "")..(self.line+1)..':'..(self.column+1)
 end
 
 return loc

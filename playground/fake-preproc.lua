@@ -71,6 +71,7 @@ local function parseargs(args)
     os.exit(1)
   end
 
+  ---@return {file: file*, name: string}
   local open = function(name, ioe)
     return {
       file= "-" == name
@@ -80,6 +81,7 @@ local function parseargs(args)
     }
   end
 
+  ---@type options
   local r = {
     infile= {file= io.stdin, name= "-"},
     outfile= {file= io.stdout, name= "-"},
@@ -94,9 +96,10 @@ local function parseargs(args)
       local nxv = false
       if "" == v then v, c, nxv = args[c+1], c+1, true end
           if "-h" == f then usage()
-      elseif "--" == f then r.infile = open(v, 'i')
-      elseif "-o" == f then r.outfile = open(v, 'o')
-      elseif "-s" == f then r.sourcemapfile = open(v, 'e')
+      elseif "--" == f then r.infile = open(v or usage("missing file name after "..f), 'i')
+      elseif "-o" == f then r.outfile = open(v or usage("missing file name after "..f), 'o')
+      elseif "-s" == f then r.sourcemapfile = open(v or usage("missing file name after "..f), 'e')
+      elseif "-v" == f then r.version = v or usage("missing version after "..f) -- TODO: check version
         else
           if nxv then c = c-1 end
           r.infile = open(args[c], 'i')

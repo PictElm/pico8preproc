@@ -31,9 +31,27 @@ local function intosourcemap(self)
   mt = {
     __index= smap,
 
+    _playground_dumpinternal= function()
+      for i=1,#internal
+        do
+          local line = internal[i]
+          print("line: "..i)
+          for j=1,#line
+            do
+              local seg = line[j]
+              print("   "..seg.cloc:repr().." - "..seg.oloc:repr())
+          end
+      end
+    end,
+
     updatemappings= function()
       if mapup then return end
       local text = ""
+
+      local abs_idx = 0
+      local abs_oline = 0
+      local abs_ocol = 0
+      local abs_name = 0
 
       local sep = ''
       for i=1,#internal
@@ -43,10 +61,6 @@ local function intosourcemap(self)
           sep = ';'
 
           local abs_ccol = 0
-          local abs_idx = 0
-          local abs_oline = 0
-          local abs_ocol = 0
-          local abs_name = 0
 
           local sepp = ''
           for j=1,#line
@@ -56,10 +70,10 @@ local function intosourcemap(self)
               sepp = ','
 
               local rel_ccol = 0
-              local rel_idx = 0
-              local rel_oline = 0
-              local rel_ocol = 0
-              local rel_name = 0
+              local rel_idx = nil
+              local rel_oline = nil
+              local rel_ocol = nil
+              local rel_name = nil
 
               rel_ccol = segment.cloc.column-abs_ccol
               abs_ccol = segment.cloc.column
@@ -89,6 +103,11 @@ local function intosourcemap(self)
     updateinternal= function()
       if intup then return end
 
+      local abs_idx = 0
+      local abs_oline = 0
+      local abs_ocol = 0
+      local abs_name = 0
+
       ---@type segment[][]
       local lines, linecount = {}, 0
       local at, len = 1, #self.mappings
@@ -98,10 +117,6 @@ local function intosourcemap(self)
           local line = self.mappings:sub(at, semi-1)
 
           local abs_ccol = 0
-          local abs_idx = 0
-          local abs_oline = 0
-          local abs_ocol = 0
-          local abs_name = 0
 
           ---@type segment[]
           local segments, segmentcount = {}, 0
