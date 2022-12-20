@@ -301,34 +301,47 @@ local function _playground()
   local csource = readfile('js')
   local self = assert(smap.decode(readfile('js.map')))
 
-  -- print("self.mappings: _"..self.mappings.."_")
-  -- getmetatable(self)._playground_dumpinternal()
-  -- print "====="
+  print("self.mappings: _"..self.mappings.."_")
+  getmetatable(self)._playground_dumpinternal()
+  print "====="
+
+  print("file: "..self.file)
+  print("sources:")
+  local colors = {reset= "\x1b[m"}
+  for k=0,#self.sources-1
+    do
+      colors[k] = "\x1b["..(36-k).."m"
+      print("   "..colors[k]..self:getsourcepath(k)..colors.reset)
+  end
+  print()
 
   ---@type segment[][]
   local internal = getmetatable(self)._playground_getinternal()
+  local lala = loc.new(0, 0, csource)
 
   for i=1,#internal
     do
       local segments = internal[i]
-      print("line "..i.." ("..#segments.." segment-s):")
+      print("\nline "..i.." ("..#segments.." segment-s):")
 
       for j=1,#segments-1
         do
+          local idx = segments[j].idx
           local from = segments[j].cloc:copy():bind(csource)
           local till = segments[j+1].cloc:copy():bind(csource)
-          print
-            ( "   "..from:repr().."/"..till:repr().."="
-            , "_"..from/till.."_"
-            )
+          local text = from/till
+          io.write("["..lala/from.."]")
+          io.write(colors[idx]..text..colors.reset)
+          lala = till
       end
 
+      local idx = segments[#segments].idx
       local last = segments[#segments].cloc:copy():bind(csource)
       local eol = loc.new(last.line+1, 0, csource)-1
-      print
-          ( "   "..last:repr().."/"..eol:repr().."="
-          , "_"..last/eol.."_"
-          )
+      local text = last/eol
+      io.write(lala/last)
+      io.write(colors[idx]..text..colors.reset)
+      lala = eol
   end
 
   -- local infile = {}
