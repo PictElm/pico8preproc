@@ -52,6 +52,68 @@ local function pp(t)
   return tostring(r), s
 end
 
-local r, s = pp(io.read('a'))
-io.stdout:write(r)
-io.stderr:write(s:encode())
+---@class options
+---@field   infile {file: file*, name: string}
+---@field   outfile {file: file*, name: string}
+---@field   sourcemapfile {file: file*, name: string}
+---@field   version string
+--- field   makefile boolean
+--- field   strictheader boolean
+
+---@param args string[]
+---@return options
+local function parseargs(args)
+  local prog = args[0]
+
+  local usage = function(oops)
+    if oops then print("Error: "..oops) end
+    print("Usage: "..prog.." <infile> -o <outfile> [-s <sourcemapfile>]")
+    os.exit(1)
+  end
+
+  local open = function(name, ioe)
+    return {
+      file= "-" == name
+        and ({i= io.stdin, o= io.stdout, e= io.stderr})[ioe]
+        or io.open(name, ({i= 'rb', o= 'wb', e= 'wb'})[ioe]),
+      name= name,
+    }
+  end
+
+  local r = {
+    infile= {file= io.stdin, name= "-"},
+    outfile= {file= io.stdout, name= "-"},
+    sourcemapfile= {file= io.stderr, name= "-"},
+    version= '0.0.5'
+  }
+
+  local c, n = 1, #args
+  while c < n+1
+    do
+      local f, v = args[c]:sub(1, 2), args[c]:sub(3)
+      local nxv = false
+      if "" == v then v, c, nxv = args[c+1], c+1, true end
+          if "-h" == f then usage()
+      elseif "--" == f then r.infile = open(v, 'i')
+      elseif "-o" == f then r.outfile = open(v, 'o')
+      elseif "-s" == f then r.sourcemapfile = open(v, 'e')
+        else
+          if nxv then c = c-1 end
+          r.infile = open(args[c], 'i')
+      end
+      c = c+1
+  end
+
+  if not r.infile.file then usage("cannot read file "..r.infile.name) end
+  if not r.outfile.file then usage("cannot write file "..r.outfile.name) end
+  if not r.sourcemapfile.file then usage("cannot write file "..r.sourcemapfile.name) end
+
+  return r
+end
+
+local function main()
+  local o = parseargs(arg)
+  local r, s = pp(o.infile.file:read('a'))
+  o.outfile.file:write(r)
+  o.sourcemapfile.file:write(s:encode())
+end main()
