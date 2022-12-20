@@ -3,10 +3,10 @@ local json = require '3rd/json_lua/json'
 local vlq = require 'scripts/text/vlq'
 local loc = require 'scripts/text/loc'
 
----@class m
+---@class smap_m
 local smap = {}
 
----@class sourcemap : m
+---@class sourcemap : smap_m
 ---@field   version        integer       #spec version
 ---@field   file           string?       #name of the generated code that this source map is associated with
 ---@field   sourceRoot     string?       #source root, prepended to the indivitual entries in the `source` field
@@ -18,7 +18,7 @@ local smap = {}
 ---@param self sourcemap #sourcemap-like
 local function intosourcemap(self)
   ---@class segment
-  ---@field   cloc  integer    #location in result file
+  ---@field   cloc  location   #location in result file
   ---@field   idx   integer?   #index in `sources`
   ---@field   oloc  location?  #location in original source
   ---@field   name  integer?   #index in `names`
@@ -32,13 +32,22 @@ local function intosourcemap(self)
     __index= smap,
 
     --- ZZZ
+    _playground_getinternal= function()
+      mt.updateinternal()
+      return internal
+    end,
     _playground_dumpinternal= function()
       mt.updateinternal()
       for k,v in ipairs(internal)
         do
           print("line "..k)
           for _,it in ipairs(v)
-            do print("", it.cloc.column, it.idx, it.oloc.line, it.oloc.column, it.name)
+            do
+              print(""
+                , self.file..':'..it.cloc:repr()
+                , it.idx and self:getsourcepath(it.idx)..':'..it.oloc:repr()
+                , it.name or ""
+                )
           end
       end
     end,
@@ -67,8 +76,14 @@ local function intosourcemap(self)
               text = text..sepp
               sepp = ','
 
-              rel_ccol = segment.ccol-abs_ccol
-              abs_ccol = segment.ccol
+              local rel_ccol = 0
+              local rel_idx = 0
+              local rel_oline = 0
+              local rel_ocol = 0
+              local rel_name = 0
+
+              rel_ccol = segment.cloc.column-abs_ccol
+              abs_ccol = segment.cloc.column
               if segment.idx
                 then
                   rel_idx = segment.idx-abs_idx
@@ -174,7 +189,6 @@ end
 ---@param file string
 ---@param sourceRoot string
 ---@return sourcemap
----@private
 function smap.new(file, sourceRoot)
   return intosourcemap({
     version= 3,
@@ -190,7 +204,6 @@ end
 ---decode a JSON-encoded source map
 ---@param jsonstr string
 ---@return sourcemap? #nil if it was not a valid JSON or not a valid source map
----@private
 function smap.decode(jsonstr)
   local yes, r = pcall(json.decode, jsonstr)
   if not yes
@@ -227,7 +240,7 @@ function smap.getsourcepath(self, idx)
   elseif 0 < #root and '/' ~= root:sub(-1)
     then root = root..'/'
   end
-  return root..self.sources[idx]
+  return root..self.sources[idx+1]
 end
 
 ---returns the content for the source by its index; the index is assumed to be correct
@@ -235,8 +248,8 @@ end
 ---@param idx integer #an index in `sources`
 ---@return string? #nil if the source could not be reached/read
 function smap.getsourcecontent(self, idx)
-  if self.sourcesContent and self.sourcesContent[idx]
-    then return self.sourcesContent[idx]
+  if self.sourcesContent and self.sourcesContent[idx+1]
+    then return self.sourcesContent[idx+1]
   end
   local path = self:getsourcepath(idx)
   -- YYY/ZZZ
@@ -288,8 +301,35 @@ local function _playground()
   local csource = readfile('js')
   local self = assert(smap.decode(readfile('js.map')))
 
-  print("self.mappings: _"..self.mappings.."_")
-  getmetatable(self)._playground_dumpinternal()
+  -- print("self.mappings: _"..self.mappings.."_")
+  -- getmetatable(self)._playground_dumpinternal()
+  -- print "====="
+
+  ---@type segment[][]
+  local internal = getmetatable(self)._playground_getinternal()
+
+  for i=1,#internal
+    do
+      local segments = internal[i]
+      print("line "..i.." ("..#segments.." segment-s):")
+
+      for j=1,#segments-1
+        do
+          local from = segments[j].cloc:copy():bind(csource)
+          local till = segments[j+1].cloc:copy():bind(csource)
+          print
+            ( "   "..from:repr().."/"..till:repr().."="
+            , "_"..from/till.."_"
+            )
+      end
+
+      local last = segments[#segments].cloc:copy():bind(csource)
+      local eol = loc.new(last.line+1, 0, csource)-1
+      print
+          ( "   "..last:repr().."/"..eol:repr().."="
+          , "_"..last/eol.."_"
+          )
+  end
 
   -- local infile = {}
   -- local insource, sourceidx = self:forward(infile)
