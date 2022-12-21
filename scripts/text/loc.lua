@@ -11,7 +11,7 @@ local loc = {}
 ---@operator div(location): string
 ---@operator mod(location): range
 ---@operator bnot(location): string
----@operator unm: location
+---@operator unm: integer
 
 ---@class range
 ---@field   from location  #(read-only)

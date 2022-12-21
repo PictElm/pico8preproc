@@ -298,9 +298,10 @@ end
 ---@param self sourcemap
 ---@param cloc location
 ---@param oloc location #its tag is used as a source name; if it was not already known, it is added and given an idx
+---@param ln integer #line number (in output, 0-base)
 ---@param name string?
-function smap.append(self, cloc, oloc, name)
-  getmetatable(self).append(cloc, oloc, name)
+function smap.append(self, cloc, oloc, ln, name)
+  getmetatable(self).append(cloc, oloc, ln, name)
   return self
 end
 
