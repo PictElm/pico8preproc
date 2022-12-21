@@ -32,35 +32,42 @@ local mt = {
 ---@param name string
 ---@param from string|location|nil
 ---@return {file: file*, name: string}
-local function tryopen(name, from)
-  local file = io.open(name)
+local function tryopen(name, from, mode, ifdash)
+  if ifdash and '-' == name then return {file= ifdash, name= name} end
+  local file = io.open(name, mode)
   if file then return {file= file, name= name} end
-  error("could not open file '"..name.."' "..(from and "(included from '"..('string' == type(from) and from or from:repr()).."')" or ""))
+  error("could not open file '"..name.."'"..(from and " (included from '"..('string' == type(from) and from or from:repr()).."')" or ""))
 end
 
----@param name string
----@param from string|location|nil
----@return string
-local function tryread(name, from)
-  local info = tryopen(name, from)
-  local buffer = info.file:read('a')
-  info.file:close()
-  return buffer
-end
-
----@param outname string
----@param inname string?
+---@param out string
+---@param in1 string?  #the first file to start reading from; if not available yet, make sure to call `pushinclude` before doing anything else
 ---@return text
-function text.new(root, outname, inname)
+function text.new(root, out, in1)
   local r = setmetatable({
-    sourcemap= smap.new(outname, root),
-    write= loc.new(0, 0, "", outname, 0),
+    sourcemap= smap.new(out, root),
+    write= loc.new(0, 0, "", out, 1),
     read= nil,
     incstack= {},
     linecount= 0,
   }, mt) --[[@as text]]
-  if inname then r:pushinclude(inname) end
+  if in1 then r:pushinclude(in1) end
   return r
+end
+
+---flush the output buffer, and optionally the JSON source map
+---@param self text
+---@param outfile string
+---@param sourcemap string
+function text.flush(self, outfile, sourcemap)
+  local out = tryopen(outfile, nil, 'wb', io.stdout)
+  out.file:write(tostring(self.write))
+  out.file:close()
+  if sourcemap
+    then
+      local map = tryopen(sourcemap, nil, 'wb', io.stderr)
+      map.file:write(self.sourcemap:encode())
+      map.file:close()
+  end
 end
 
 ---@param self text
@@ -70,7 +77,10 @@ function text.pushinclude(self, inname)
   if self.read
     then self.incstack[#self.incstack+1] = self.read
   end
-  self.read = loc.new(0, 0, tryread(inname), inname, 0)
+  local info = tryopen(inname, self.read, 'rb', not self.read and io.stdin)
+  local buffer = info.file:read('a')
+  info.file:close()
+  self.read = loc.new(0, 0, buffer, inname, 1)
   return self.read
 end
 

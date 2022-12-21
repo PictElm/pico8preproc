@@ -1,17 +1,11 @@
-local smap = require 'scripts/text/smap'
-local loc = require 'scripts/text/loc'
-
 local text = require 'scripts/text'
 local args = require 'scripts/args'
 
 ---does `\s*?something\n` -> `\s*print(something)\n`
----@param t string
----@param inname string
----@param outname string
----@return string, sourcemap
-local function pp(t, inname, outname)
-  local o = text.new("", outname, inname) --[[@as string #meh]]
-  local x = o --[[@as text]]
+---@param opts options
+local function pp(opts)
+  local x = text.new("", opts.outfile, opts.infile)
+  local o = x --[[@as string]]
 
   repeat
     local eol = x:toeol()
@@ -34,12 +28,7 @@ local function pp(t, inname, outname)
     x.read = eol:copy()+1
   until x:iseof()
 
-  return tostring(x.write), x.sourcemap
+  x:flush(opts.outfile, opts.sourcemap)
 end
 
-local function main()
-  local o = args(arg)
-  local r, s = pp(o.infile.file:read('a'), o.infile.name, o.outfile.name)
-  o.outfile.file:write(r)
-  o.sourcemapfile.file:write(s:encode())
-end main()
+pp(args(arg))
