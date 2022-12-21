@@ -10,29 +10,9 @@ local args = require 'scripts/args'
 ---@param outname string
 ---@return string, sourcemap
 local function pp(t, inname, outname)
-  local r, s = loc.new(0, 0, "", inname), smap.new(outname)
-  local ln = 0
+  local o = text.new("", outname, inname) --[[@as string #meh]]
 
-  local o = setmetatable({}, {
-    __concat= function(self, lit_or_range)
-      ---@type string
-      local added
-      if 'table' == type(lit_or_range)
-        then
-          ---@cast lit_or_range range
-          s:append(r, lit_or_range.from, ln)
-          added = tostring(lit_or_range)
-        else
-          added = lit_or_range
-      end
-      local _, count = added:gsub('\n', ' ')
-      ln = ln+count
-      r = r..added
-      return self
-    end,
-  }) --[[@as string]]
-
-  local cursor = loc.new(0, 0, t, r.tag)
+  local cursor = loc.new(0, 0, t, inname)
   repeat
     local eol = loc.new(cursor.line+1, 0, t, cursor.tag)-1
     local line = cursor/eol
@@ -54,7 +34,8 @@ local function pp(t, inname, outname)
     cursor = eol:copy()+1
   until "" == ~cursor
 
-  return tostring(r), s
+  local x = o --[[@as text]]
+  return tostring(x.write), x.sourcemap
 end
 
 local function main()
