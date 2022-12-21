@@ -11,30 +11,29 @@ local args = require 'scripts/args'
 ---@return string, sourcemap
 local function pp(t, inname, outname)
   local o = text.new("", outname, inname) --[[@as string #meh]]
+  local x = o --[[@as text]]
 
-  local cursor = loc.new(0, 0, t, inname)
   repeat
-    local eol = loc.new(cursor.line+1, 0, t, cursor.tag)-1
-    local line = cursor/eol
+    local eol = x:toeol()
+    local line = x.read/eol
 
     local at, len = line:find('%s*%?')
     if at
       then
-        local arg = cursor:copy()+at-1+len
-        o = o..cursor%(arg:copy()-1)
+        local arg = x.read:copy()+at-1+len
+        o = o..x.read%(arg:copy()-1)
         o = o.."print("
         o = o..arg%eol
         o = o..")\n"
       else
         o = o.."--"
-        o = o..cursor%eol
+        o = o..x.read%eol
         o = o.."\n"
     end
 
-    cursor = eol:copy()+1
-  until "" == ~cursor
+    x.read = eol:copy()+1
+  until x:iseof()
 
-  local x = o --[[@as text]]
   return tostring(x.write), x.sourcemap
 end
 

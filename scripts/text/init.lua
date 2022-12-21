@@ -24,7 +24,7 @@ local mt = {
 ---@class text : text_m
 ---@field   sourcemap sourcemap   #(read-only)
 ---@field   write     location    #(read-only)
----@field   read      location    #(read-only)
+---@field   read      location
 ---@field   incstack  location[]  #(read-only)
 ---@field   linecount integer     #(read-only) counts line in output
 ---@operator concat(string|number|range): text
@@ -86,7 +86,7 @@ end
 ---@param self text
 ---@return boolean
 function text.iseof(self)
-  return "" == ~self
+  return "" == ~self.read
 end
 
 ---@param self text
