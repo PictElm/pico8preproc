@@ -24,7 +24,7 @@ local function intosourcemap(self)
   ---@field   name  integer?   #index in `names`
 
   ---@type segment[][]
-  local internal = {}
+  local internal = {sources= {}}
   local intup, mapup = false, false
 
   local mt
@@ -39,9 +39,42 @@ local function intosourcemap(self)
           for j=1,#line
             do
               local seg = line[j]
-              print("   "..seg.cloc:repr().." - "..seg.oloc:repr())
+              print("   "..seg.cloc:repr()..(seg.idx and " <=> "..seg.oloc:repr() or ""))
           end
       end
+    end,
+
+    ---@param cloc location
+    ---@param oloc location #its tag is used as a source name; if it was not already known, it is added and given an idx
+    ---@param ln integer #line number (in output, 0-base)
+    ---@param name string?
+    append= function(cloc, oloc, ln, name)
+      ---@type integer?
+      local knw = internal.sources[oloc.tag]
+      if not knw
+        then
+          knw = #self.sources
+          internal.sources[oloc.tag] = knw
+          self.sources[knw+1] = oloc.tag
+      end
+      if #internal < ln+1
+        then
+          for k=#internal,ln
+            do internal[k+1] = {}
+          end
+      end
+      -- YYY: might do: take a whole range rather than
+      -- `oloc` and used the `to` end to put an other
+      -- segment after (probably pointing back to 0:0 or
+      -- something.. what's the proper way to do this?)
+      local it = internal[ln+1]
+      it[#it+1] = {
+        cloc= cloc:copy(),
+        idx= knw,
+        oloc= oloc:copy(),
+        --name= name, -- TODO: `names`, same as `sources`
+      }
+      mapup = false
     end,
 
     updatemappings= function()
@@ -136,13 +169,13 @@ local function intosourcemap(self)
               -- TODO: proper throw on invalid? or let the `+` fail?
 
               ---@type segment
-              local it = {cloc= loc.new(linecount, abs_ccol+rel_ccol)}
+              local it = {cloc= loc.new(linecount, abs_ccol+rel_ccol, "", self.file)}
               abs_ccol = it.cloc.column
               if rel_idx
                 then
                   it.idx = abs_idx+rel_idx
                   abs_idx = it.idx
-                  it.oloc = loc.new(abs_oline+rel_oline, abs_ocol+rel_ocol)
+                  it.oloc = loc.new(abs_oline+rel_oline, abs_ocol+rel_ocol, "", self.sources[abs_idx+1])
                   abs_oline = it.oloc.line
                   abs_ocol = it.oloc.column
                   if rel_name
@@ -163,7 +196,9 @@ local function intosourcemap(self)
           at = semi+1
       end -- while (loop reading `mappings`)
 
+      local psources = internal.sources
       internal = lines
+      internal.sources = psources
       intup = true
     end,
   }
@@ -219,7 +254,6 @@ end
 ---@return string
 function smap.encode(self)
   local mt = getmetatable(self)
-  assert(smap == mt.__index, "not a sourcemap, don't wanna deal with that")
   mt.updatemappings()
   -- YYY: safe as long as mt has no `__pairs` and no `__len`
   return json.encode(self)
@@ -258,6 +292,16 @@ function smap.getsourcecontent(self, idx)
       return buf
   end
   return nil
+end
+
+---append to the file text mapping to a source
+---@param self sourcemap
+---@param cloc location
+---@param oloc location #its tag is used as a source name; if it was not already known, it is added and given an idx
+---@param name string?
+function smap.append(self, cloc, oloc, name)
+  getmetatable(self).append(cloc, oloc, name)
+  return self
 end
 
 ---transform a location in `file` to its original location in one of `sources` (which is return as its index)

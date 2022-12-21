@@ -4,7 +4,7 @@ local loc = {}
 ---@class location : loc_m
 ---@field   line   integer  #(read-only) warning: it is 0-based
 ---@field   column integer  #(read-only) warning: it is 0-based
----@field   tag    any?     #free field
+---@field   tag    any?     #free field, used with smap for file names
 ---@operator add(integer): location
 ---@operator sub(integer): location
 ---@operator concat(string): location
@@ -16,21 +16,19 @@ local loc = {}
 ---@class range
 ---@field   from location  #(read-only)
 ---@field   to   location  #(read-only)
---- operator concat(string): range
 ---@operator len(string): integer
-local range_mt = {}
+---@field   repr fun(): string
+local range_mt = {
+  __index= {
+    ---@param self range
+    repr= function(self) return self.from:repr()..'/'..self.to:repr() end,
+  },
+  __len= function(self) return -self.to - -self.from end,
+  __tostring= function(self) return self.from/self.to end,
+}
 ---@return range
 local function range(from, to)
-  return setmetatable({from= from, to= to}, {
-    -- __concat= function(self, other)
-    --   assert(nil, "no")
-    --   assert('table' == type(self) and 'table' == type(other))
-    --   self.to = other.to
-    --   return self
-    -- end,
-    __len= function(self) return -self.to - -self.from end,
-    __tostring= function(self) return self.from/self.to end,
-  })
+  return setmetatable({from= from, to= to}, range_mt)
 end
 
 ---@param line integer?

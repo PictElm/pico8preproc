@@ -1,35 +1,37 @@
 local smap = require 'scripts/text/smap'
 local loc = require 'scripts/text/loc'
 
-local function log(t)
-  io.stderr:write('\x1b[31m'..tostring(t)..'\x1b[m\n')
-end
-
 ---does `\s*?something\n` -> `\s*print(something)\n`
 ---@param t string
+---@param inname string
+---@param outname string
 ---@return string, sourcemap
-local function pp(t)
-  local r, s = loc.new(0, 0, "", "stdout.lua"), smap.new("stdin.p8")
+local function pp(t, inname, outname)
+  local r, s = loc.new(0, 0, "", inname), smap.new(outname)
+  local ln = 0
 
   local o = setmetatable({}, {
     __concat= function(self, lit_or_range)
-      -- TODO: update `s` about insertion
+      ---@type string
+      local added
       if 'table' == type(lit_or_range)
         then
           ---@cast lit_or_range range
-          local from, to = lit_or_range.from, lit_or_range.to
-          log("concatenating range: "..from:repr().."/"..to:repr())
-          r = r..tostring(lit_or_range)
+          s:append(r, lit_or_range.from, ln)
+          added = tostring(lit_or_range)
         else
-          r = r..lit_or_range
+          added = lit_or_range
       end
+      local _, count = added:gsub('\n', ' ')
+      ln = ln+count
+      r = r..added
       return self
     end,
   }) --[[@as string]]
 
-  local cursor = loc.new(0, 0, t, "source")
+  local cursor = loc.new(0, 0, t, r.tag)
   repeat
-    local eol = loc.new(cursor.line+1, 0, t, "source")-1
+    local eol = loc.new(cursor.line+1, 0, t, cursor.tag)-1
     local line = cursor/eol
 
     local at, len = line:find('%s*%?')
@@ -57,8 +59,8 @@ end
 ---@field   outfile {file: file*, name: string}
 ---@field   sourcemapfile {file: file*, name: string}
 ---@field   version string
---- field   makefile boolean
 --- field   strictheader boolean
+--- field   makefile boolean
 
 ---@param args string[]
 ---@return options
@@ -116,7 +118,7 @@ end
 
 local function main()
   local o = parseargs(arg)
-  local r, s = pp(o.infile.file:read('a'))
+  local r, s = pp(o.infile.file:read('a'), o.infile.name, o.outfile.name)
   o.outfile.file:write(r)
   o.sourcemapfile.file:write(s:encode())
 end main()
