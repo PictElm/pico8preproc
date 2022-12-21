@@ -71,13 +71,24 @@ function text.flush(self, outfile, sourcemap)
 end
 
 ---@param self text
+---@param ... string|number|range
+---@return text
+function text.append(self, ...)
+  local t = table.pack(...)
+  for k=1,t.n do self = self..t[k] end
+  return self
+end
+
+---@param self text
 ---@param inname string
 ---@return location #the push'ed location (ie. `self.read`)
 function text.pushinclude(self, inname)
   if self.read
     then self.incstack[#self.incstack+1] = self.read
   end
-  local info = tryopen(inname, self.read, 'rb', not self.read and io.stdin)
+  -- TODO: include relative to current self.read (default behavior)
+  local path = self.sourcemap:getrootpath()..inname
+  local info = tryopen(path, self.read, 'rb', not self.read and io.stdin)
   local buffer = info.file:read('a')
   info.file:close()
   self.read = loc.new(0, 0, buffer, inname, 1)

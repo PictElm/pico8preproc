@@ -1,34 +1,27 @@
 local text = require 'scripts/text'
 local args = require 'scripts/args'
 
----does `\s*?something\n` -> `\s*print(something)\n`
+---does `\s*?something\n` -> `\s*print(something)\n` and comments out anything else
 ---@param opts options
 local function pp(opts)
-  local x = text.new("", opts.outfile, opts.infile)
-  local o = x --[[@as string]]
+  local r = text.new(opts.root, opts.outfile, opts.infile)
 
   repeat
-    local eol = x:toeol()
-    local line = x.read/eol
+    local eol = r:toeol()
 
-    local at, len = line:find('%s*%?')
+    local at, len = (r.read/eol):find('%s*%?')
     if at
       then
-        local arg = x.read:copy()+at-1+len
-        o = o..x.read%(arg:copy()-1)
-        o = o.."print("
-        o = o..arg%eol
-        o = o..")\n"
+        local arg = r.read:copy()+at-1+len
+        r:append(r.read%(arg:copy()-1), "print(", arg%eol, ")\n")
       else
-        o = o.."--"
-        o = o..x.read%eol
-        o = o.."\n"
+        r:append("--", r.read%eol, "\n")
     end
 
-    x.read = eol:copy()+1
-  until x:iseof()
+    r.read = eol+1
+  until r:iseof()
 
-  x:flush(opts.outfile, opts.sourcemap)
+  r:flush(opts.outfile, opts.sourcemap)
 end
 
 pp(args(arg))

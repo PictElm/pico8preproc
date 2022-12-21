@@ -259,24 +259,32 @@ function smap.encode(self)
   return json.encode(self)
 end
 
----returns the path for the source by its index; the index is assumed to be correct
+---return a usable path to the root; it would already contain the trailling '/', so no need to add it
 ---@param self sourcemap
----@param idx integer #an index in `sources`
 ---@return string
-function smap.getsourcepath(self, idx)
+function smap.getrootpath(self)
   local root = self.sourceRoot
   if not root
     then root = ""
   elseif 0 < #root and '/' ~= root:sub(-1)
     then root = root..'/'
   end
-  return root..self.sources[idx+1]
+  return root
+end
+
+---returns the path for the source by its index; the index is assumed to be correct
+---@param self sourcemap
+---@param idx integer #an index in `sources`
+---@return string
+function smap.getsourcepath(self, idx)
+  return self:getrootpath()..self.sources[idx+1]
 end
 
 ---returns the content for the source by its index; the index is assumed to be correct
 ---@param self sourcemap
 ---@param idx integer #an index in `sources`
 ---@return string? #nil if the source could not be reached/read
+---@deprecated
 function smap.getsourcecontent(self, idx)
   if self.sourcesContent and self.sourcesContent[idx+1]
     then return self.sourcesContent[idx+1]

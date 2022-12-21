@@ -2,6 +2,7 @@
 ---@field   infile        string
 ---@field   outfile       string
 ---@field   sourcemap     string   #command-line optional
+---@field   root          string   #command-line optional
 ---@field   version       string   #command-line optional
 --- field   strictheader  boolean  #command-line optional
 --- field   makefile      boolean  #command-line optional
@@ -18,6 +19,7 @@ return function(args)
     print("Usage: "..prog.." <infile> -o <outfile>")
     print("       "..spce.." [-s <sourcemap>]")
     print("       "..spce.." [-v <version>]")
+    print("       "..spce.." [-R <root>]")
     -- print("       "..spce.." [-S] [-M]")
     os.exit(1)
   end
@@ -27,6 +29,7 @@ return function(args)
     infile= "-",
     outfile= "-",
     sourcemap= "-",
+    root= "", -- ie. "./"
     version= '0.0.5',
   }
 
@@ -41,6 +44,7 @@ return function(args)
           elseif "--" == f then r.infile = v or usage("missing file name after "..f)
           elseif "-o" == f then r.outfile = v or usage("missing file name after "..f)
           elseif "-s" == f then r.sourcemap = v or usage("missing file name after "..f)
+          elseif "-R" == f then r.root = v or usage("missing version after "..f)
           elseif "-v" == f then r.version = v or usage("missing version after "..f) -- TODO: check version
           else usage("unknown option "..f) end
         else
