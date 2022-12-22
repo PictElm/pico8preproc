@@ -1,11 +1,5 @@
-local text = require 'scripts/text'
-local args = require 'scripts/args'
-
 ---does `\s*?something\n` -> `\s*print(something)\n` and comments out anything else
----@param opts options
-local function pp(opts)
-  local r = text.new(opts.root, opts.outfile, opts.infile)
-
+require 'scripts/impls/common' .new(function(r)
   repeat
     local eol = r:toeol()
 
@@ -20,8 +14,4 @@ local function pp(opts)
 
     r.read = eol+1
   until r:iseof()
-
-  r:flush(opts.outfile, opts.sourcemap)
-end
-
-pp(args(arg))
+end)(require 'scripts/args' (arg))

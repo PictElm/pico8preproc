@@ -57,7 +57,7 @@ end
 ---flush the output buffer, and optionally the JSON source map
 ---@param self text
 ---@param outfile string
----@param sourcemap string
+---@param sourcemap string?
 function text.flush(self, outfile, sourcemap)
   local out = tryopen(outfile, nil, 'wb', io.stdout)
   out.file:write(tostring(self.write))

@@ -1,13 +1,13 @@
 local vers = require 'scripts/vers'
 
 ---@class options
----@field   infile        string
----@field   outfile       string
----@field   sourcemap     string   #command-line optional
----@field   root          string   #command-line optional
----@field   version       version  #command-line optional
---- field   strictheader  boolean  #command-line optional
---- field   makefile      boolean  #command-line optional
+---@field   infile        string   #default "-" (ie stdin)
+---@field   outfile       string   #default "-" (ie stdout)
+---@field   sourcemap     string?  #default nil (ie do not emit)
+---@field   root          string   #default "" (ie cwd)
+---@field   version       version  #default `vers.default`
+--- field   strictheader  boolean
+--- field   makefile      boolean
 
 ---@param args string[]
 ---@return options
@@ -40,8 +40,8 @@ return function(args)
   local r = {
     infile= "-",
     outfile= "-",
-    sourcemap= "-",
-    root= "", -- ie. "./"
+    sourcemap= nil,
+    root= "",
     version= vers.default,
   }
 
