@@ -13,23 +13,37 @@ local loc = {}
 ---@operator bnot(location): string
 ---@operator unm: integer
 
----@class range
+---@class range  #compatible with the piece interface
 ---@field   from location  #(read-only)
 ---@field   to   location  #(read-only)
----@operator len(string): integer
----@field   repr fun(): string
-local range_mt = {
+local range_mt
+---@return range
+local function range(from, to) return setmetatable({from= from, to= to}, range_mt) end
+range_mt = {
   __index= {
     ---@param self range
+    ---@return string
     repr= function(self) return self.from:repr()..'/'..self.to:repr() end,
+    ---@param self range
+    ---@param i integer
+    ---@param j integer?
+    ---@return range
+    sub= function(self, i, j) return range(self.from:copy()+i, j and self.from:copy()+j or self.to:copy()) end,
+    ---@param self range
+    ---@param pattern string
+    ---@param init integer?
+    ---@param plain boolean?
+    ---@return integer start
+    ---@return integer end
+    find= function(self, pattern, init, plain) return tostring(self):find(pattern, init, plain) end,
   },
+  ---@param self range
+  ---@return integer
   __len= function(self) return -self.to - -self.from end,
+  ---@param self range
+  ---@return string
   __tostring= function(self) return self.from/self.to end,
 }
----@return range
-local function range(from, to)
-  return setmetatable({from= from, to= to}, range_mt)
-end
 
 ---@param line integer?
 ---@param column integer?
