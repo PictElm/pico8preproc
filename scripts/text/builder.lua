@@ -38,8 +38,10 @@ local mt = {
 function builder.new(...)
   local r = table.pack(...)
   r.len, r.str = 0, ""
-  for k=1,#r.n
-    do r.len, r.str = r.len+#r[k], r.str..r[k]
+  for k=1,r.n
+    do
+      r.len = r.len + #r[k]
+      r.str = r.str..tostring(r[k])
   end
   return setmetatable(r, mt) --[[@as builder]]
 end
@@ -64,7 +66,7 @@ end
 ---@return (string|range)[]
 function builder.flatten(self)
   return self:loop(function(it, _, a)
-    if getmetatable(it).__index == mt
+    if getmetatable(it) == mt
       then
         local f = it:flatten()
         for k=1,#f do a[#a+1] = f[k] end
@@ -80,9 +82,9 @@ end
 ---@param j integer?
 ---@return builder
 function builder.sub(self, i, j)
-  local need = (j or self.len)-i+1
+  local need = (j or self.len)-i
   return builder.new(table.unpack(
-    self:loop(function(it, _, a)
+    (self:loop(function(it, _, a)
       local l = #it
       if #it < i
         then
@@ -94,7 +96,7 @@ function builder.sub(self, i, j)
       need = need-l
       a[#a+1] = b
       return a, 0 == need
-    end, {})
+    end, {}))
   ))
 end
 

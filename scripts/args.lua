@@ -3,6 +3,7 @@ local vers = require 'scripts/vers'
 ---@class options
 ---@field   infile        string   #default "-" (ie stdin)
 ---@field   outfile       string   #default "-" (ie stdout)
+---@field   verbfile      string?  #default nil (ie do quiet)
 ---@field   sourcemap     string?  #default nil (ie do not emit)
 ---@field   root          string   #default "" (ie cwd)
 ---@field   version       version  #default `vers.default`
@@ -19,6 +20,7 @@ return function(args)
     if oops then io.stderr:write("Error: "..oops.."\n") end
     local spce = prog:gsub('.', ' ')
     print("Usage: "..prog.." <infile> -o <outfile>")
+    print("       "..spce.." [-V <verbfile>]")
     print("       "..spce.." [-s <sourcemap>]")
     print("       "..spce.." [-v <version>]")
     print("       "..spce.." [-R <root>]")
@@ -31,7 +33,9 @@ return function(args)
    For files, a mere '-' implies:
       for infile: stdin
       for outfile: stdout
-      for sroucemap: stderr
+      for verbfile: stderr
+      for sourcemap: stderr
+   (Specifying both '-V-' and '-s-' *will* may be undesirable.)
 ]]
     os.exit(1)
   end
@@ -40,6 +44,7 @@ return function(args)
   local r = {
     infile= "-",
     outfile= "-",
+    verbfile= nil,
     sourcemap= nil,
     root= "",
     version= vers.default,
@@ -58,6 +63,7 @@ return function(args)
               r.infile = v or usage("missing file name after "..f)
           elseif "-h" == f then usage()
           elseif "-o" == f then r.outfile = v or usage("missing file name after "..f)
+          elseif "-V" == f then r.verbfile = v or usage("missing file name after "..f)
           elseif "-s" == f then r.sourcemap = v or usage("missing file name after "..f)
           elseif "-R" == f then r.root = v or usage("missing version after "..f)
           elseif "-v" == f

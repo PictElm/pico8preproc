@@ -1,5 +1,7 @@
 ---does `\s*?something\n` -> `\s*print(something)\n` and comments out anything else
-require 'scripts/impls/common' .new(function(r)
+require 'scripts/impls/common' .new("fake", function(log, r)
+  log "entering"
+
   repeat
     local eol = r:toeol()
 
@@ -14,4 +16,6 @@ require 'scripts/impls/common' .new(function(r)
 
     r.read = eol+1
   until r:iseof()
+
+  log "leaving"
 end)(require 'scripts/args' (arg))

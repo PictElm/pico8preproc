@@ -1,12 +1,14 @@
-return require 'scripts/impls/common' .new(function(r)
+return require 'scripts/impls/common' .new("05", function(log, r)
+  log "entering"
+
+  local builder = require 'scripts/text/builder'
   local maxIter = 16000
 
   repeat
-    local eol = r:toeol()
-    local ln = r.read/eol
+    local eol = r:toeol()+1
+    local ln = builder.new(r.read/eol)
 
     local at
-    local sb = {ln}
     repeat
       at = ln:find('%!=')
         or ln:find('%+=')
@@ -18,13 +20,12 @@ return require 'scripts/impls/common' .new(function(r)
       local c = ln:sub(at, at)
       if '!' == c
         then
-          ln = ln:sub(1, at-1).."~"..ln:sub(at+1)
-          -- sb = {sb:sub(1, at-1), "~", sb:sub(at+1)}
+          ln = builder.new(ln:sub(1, at-1), "~", ln:sub(at+1))
         else
-          local backw = ln:sub(1, at-1):reverse()
-          local a, b = backw:find("%S+")
           -- TODO: translate to indices in 'forward' ln
-          ln = backw:sub(a):reverse().." = "..backw:sub(a, b):reverse().." "..c.." "..ln:sub(at+2)
+          local backw = tostring(ln:sub(1, at-1)):reverse()
+          local a, b = backw:find("%S+")
+          ln = builder.new(backw:sub(a):reverse(), " = ", backw:sub(a, b):reverse(), " ", c, " ", ln:sub(at+2))
       end
     until nil
 
@@ -41,14 +42,18 @@ return require 'scripts/impls/common' .new(function(r)
             end
         end
         if cl
-          then ln = ln:sub(1, op-1)..ln:sub(op, cl).." then "..ln:sub(cl+1).." end"
+          then ln = builder.new(ln:sub(1, op-1), ln:sub(op, cl), " then ", ln:sub(cl+1), " end")
         end
     end
 
-    result = result..ln
+    local f = ln:flatten()
+    log(nil, table.unpack(f))
+    r:append(table.unpack(f))
 
-    if not lnend then break end
-    cursor = lnend+1
+    if r:iseof() then break end -- YYY: could move above
+    r.read = eol
     maxIter = maxIter-1
   until 0 == maxIter
+
+  log "leaving"
 end)
