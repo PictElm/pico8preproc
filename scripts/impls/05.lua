@@ -6,7 +6,7 @@ return require 'scripts/impls/common' .new("05", function(log, r)
 
   repeat
     local eol = r:toeol()+1
-    local ln = builder.new(r.read/eol)
+    local ln = builder.new(r.read%eol)
 
     local at
     repeat

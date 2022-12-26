@@ -139,7 +139,7 @@ function loc.new(line, column, text, tag, offset)
       return text:sub(offset, till)
     end,
     __mod= function(self, mate)
-      assert(-self < -mate)
+      assert(-self <= -mate)
       return range(self, mate)
     end,
 
