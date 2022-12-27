@@ -28,7 +28,7 @@ range_mt = {
     ---@param i integer
     ---@param j integer?
     ---@return range
-    sub= function(self, i, j) return range(self.from:copy()+(i-1), j and self.from:copy()+(j-1) or self.to:copy()) end,
+    sub= function(self, i, j) return range(self.from:copy()+(i-1), j and self.from:copy()+j or self.to:copy()) end,
     ---@param self range
     ---@param pattern string
     ---@param init integer?

@@ -120,7 +120,7 @@ end
 
 ---@param self text
 ---@return location
-function text.toeol(self)
+function text.toeol(self) -- XXX: when no nl
   -- return self:tofind('\n') or self.read:copy()+-self.read
 
   -- YYY: this might be the most costly

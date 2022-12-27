@@ -6,15 +6,21 @@ local common_m = {}
 
 ---@param o any
 ---@return string
-local function da(o)
+local function da(o, i)
   if 'string' == type(o) then return "'"..o:gsub("'", "\\'"):gsub("\n", "\\n"):gsub("\t", "\\t").."'" end
   if 'table' == type(o)
     then
-      local r = "{\n"
+      local r = "{\n" i = i or ""
       for k,v in pairs(o)
-        do r = r.."\t["..da(k).."]= "..da(v)..",\n"
+        do
+          r = r..i.."\t"
+          if 'string' == type(k)
+            then r = r..k
+            else r = r.."["..da(k).."]"
+          end
+          r = r.."= "..da(v, i.."\t")..",\n"
       end
-      return r.."}"
+      return r..i.."}"
   end
   return tostring(o)
 end

@@ -35,7 +35,7 @@ return function(args)
       for outfile: stdout
       for verbfile: stderr
       for sourcemap: stderr
-   (Specifying both '-V-' and '-s-' *will* may be undesirable.)
+   (Specifying both '-V-' and '-s-' may be undesirable.)
 ]]
     os.exit(1)
   end
