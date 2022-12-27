@@ -18,14 +18,16 @@ return require 'scripts/impls/common' .new("05", function(log, r)
         or ln:find('%%=')
       if not at then break end
       local c = ln:sub(at, at)
-      if '!' == c
+      if '!' == tostring(c)
         then
           ln = builder.new(ln:sub(1, at-1), "~", ln:sub(at+1))
         else
-          -- TODO: translate to indices in 'forward' ln
-          local backw = tostring(ln:sub(1, at-1)):reverse()
-          local a, b = backw:find("%S+")
-          ln = builder.new(backw:sub(a):reverse(), " = ", backw:sub(a, b):reverse(), " ", c, " ", ln:sub(at+2))
+          local forw = tostring(ln:sub(1, at-1))
+          local sa = at-1
+          while 1 < sa and ' ' == forw:sub(sa, sa) do sa = sa-1 end
+          local so = sa
+          while 1 < so and ' ' ~= forw:sub(so, so) and '\t' ~= forw:sub(so, so) do so = so-1 end
+          ln = builder.new(ln:sub(1, so), " = ", ln:sub(sa, so), " ", c, " ", ln:sub(at+2))
       end
     until nil
 

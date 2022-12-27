@@ -135,7 +135,7 @@ function loc.new(line, column, text, tag, offset)
 
     __div= function(_, mate)
       local till = -mate-1
-      if till < 0 or till <= offset then return "" end
+      if till < 0 or till < offset then return "" end
       return text:sub(offset, till)
     end,
     __mod= function(self, mate)
