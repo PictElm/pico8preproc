@@ -1,0 +1,5 @@
+Accurate re-implementations of PICO-8's preprocessing procedure in Lua, from retro-engineering.
+Idea was to enable using the sumneko/lua-language-server.
+Learned things.
+Everything PICO-8 is disappointing.
+Closed.
